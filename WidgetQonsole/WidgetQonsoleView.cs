@@ -1,11 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using ImGuiNET;
 using UImGui;
 using UnityEngine;
-using NotImplementedException = System.NotImplementedException;
-using System = ConsoleSystem.System;
 
 
 // todo: port visual from c++
@@ -39,7 +36,16 @@ public class WidgetQonsoleView : MonoBehaviour
     private bool m_WasPrevFrameTabCompletion;
     private readonly Vector4[] m_ColorPalette = new Vector4[(int) COLOR_PALETTE.COL_COUNT];
     ImGuiTextFilter m_TextFilter;    //!< Logging filer
-    private ConsoleSystem.System m_ConsoleSystem = new ConsoleSystem.System();            // Main console system.
+
+
+    private List<string> _test = new List<string>()
+    {
+        "sda", "sada"
+    };
+    public List<string> Items()
+    {
+        return _test;
+    }
 
 
     void Awake()
@@ -270,7 +276,7 @@ public class WidgetQonsoleView : MonoBehaviour
             ImGui.PushTextWrapPos();
 
             // Display items.
-            foreach (var item in m_ConsoleSystem.Items())
+            foreach (var item in Items())
             {
                 //// Exit if word is filtered.
                 //if (!m_TextFilter.PassFilter(item.Get().c_str()))
@@ -346,6 +352,10 @@ public class WidgetQonsoleView : MonoBehaviour
         ImGui.PushItemWidth(-128);
         if (ImGui.InputText("Input", buffer, 32/*inputTextFlags, InputCallback, this*/))
         {
+            if (ImGui.IsKeyPressed(9))
+            {
+                print("tab");
+            }
             //// Validate.
             //if (!m_Buffer.empty())
             //{
