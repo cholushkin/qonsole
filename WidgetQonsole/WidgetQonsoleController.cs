@@ -1,34 +1,43 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
+using Gamelib.DataStructures;
 using MoonSharp.Interpreter;
-using NaughtyAttributes;
 using UnityEngine;
 
 namespace Qonsole
 {
     public class WidgetQonsoleController : MonoBehaviour
     {
-        [ResizableTextArea] public string LuaScript;
-        [Button]
-        void RunScript()
+        public class LogEntry
         {
-            ExecuteString(LuaScript);
+            public string Message { get; }
+
+            public LogEntry(string message)
+            {
+                Message = message;
+            }
+
         }
 
 
+        private const int CircularBufferCapacity = 128;
+        private CircularBuffer<LogEntry> _items = new CircularBuffer<LogEntry>(CircularBufferCapacity);
         public WidgetQonsoleView View;
         public Script Script { get; private set; }
 
-
-        
         void Awake()
         {
+            // Intercept debug entries
+            Application.logMessageReceivedThreaded -= ReceivedLog;
+            Application.logMessageReceivedThreaded += ReceivedLog;
+
+            View.SetItems(_items);
+
+
             // Redefine print to print using Unity Debug.Log
             Script.DefaultOptions.DebugPrint = s => Debug.Log(s);
             Script = new Script();
 
             RegisterLuaFunctions();
-
         }
 
         private void RegisterLuaFunctions()
@@ -42,11 +51,21 @@ namespace Qonsole
 
         public void ExecuteString(string luaCode)
         {
-            if(string.IsNullOrEmpty(luaCode))
-                return;
-            var dVal = Script.DoString(luaCode);
+            try
+            {
+                if (string.IsNullOrEmpty(luaCode))
+                    return;
+                var dVal = Script.DoString(luaCode);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
+
+        void ReceivedLog(string logString, string stackTrace, LogType logType)
+        {
+            _items.Enqueue(new LogEntry(logString));
         }
     }
-
-
 }

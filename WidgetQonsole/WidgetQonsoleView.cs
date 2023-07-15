@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Gamelib.DataStructures;
 using ImGuiNET;
+using Qonsole;
 using UImGui;
 using UnityEngine;
 
@@ -9,6 +11,12 @@ using UnityEngine;
 // todo: rename all vairalbes to local naming convention
 public class WidgetQonsoleView : MonoBehaviour
 {
+
+    public class EventConsoleEnteredText
+    {
+        public string Text;
+    }
+
     enum COLOR_PALETTE
     {
         // This four have to match the csys item type enum.
@@ -26,7 +34,7 @@ public class WidgetQonsoleView : MonoBehaviour
 
     private const float inputBufferSize = 1024;
     private float m_WindowAlpha = 1f;
-    private string m_ConsoleName = "DefaultConsole";
+    public string ConsoleName = "DefaultConsole";
     private bool m_IsConsoleOpened;
     private bool m_ColoredOutput;
     private bool m_AutoScroll;
@@ -34,17 +42,16 @@ public class WidgetQonsoleView : MonoBehaviour
     private bool m_TimeStamps;
     private bool m_ScrollToBottom;
     private bool m_WasPrevFrameTabCompletion;
-    private readonly Vector4[] m_ColorPalette = new Vector4[(int) COLOR_PALETTE.COL_COUNT];
+    private readonly Vector4[] m_ColorPalette = new Vector4[(int)COLOR_PALETTE.COL_COUNT];
     ImGuiTextFilter m_TextFilter;    //!< Logging filer
 
 
-    private List<string> _test = new List<string>()
+    private CircularBuffer<WidgetQonsoleController.LogEntry> _items;
+
+
+    public void SetItems(CircularBuffer<WidgetQonsoleController.LogEntry> items)
     {
-        "sda", "sada"
-    };
-    public List<string> Items()
-    {
-        return _test;
+        _items = items;
     }
 
 
@@ -60,7 +67,7 @@ public class WidgetQonsoleView : MonoBehaviour
         //// Set Console ImGui default settings
         //if (!m_LoadedFromIni)
         //{
-            DefaultSettings();
+        DefaultSettings();
         //}
 
         //// Custom functions.
@@ -87,7 +94,7 @@ public class WidgetQonsoleView : MonoBehaviour
     {
         // Begin Console Window.
         ImGui.PushStyleVar(ImGuiStyleVar.Alpha, m_WindowAlpha);
-        if (!ImGui.Begin(m_ConsoleName, ref m_IsConsoleOpened, ImGuiWindowFlags.MenuBar))
+        if (!ImGui.Begin(ConsoleName, ref m_IsConsoleOpened, ImGuiWindowFlags.MenuBar))
         {
             ImGui.PopStyleVar();
             ImGui.End();
@@ -178,7 +185,7 @@ public class WidgetQonsoleView : MonoBehaviour
 
                 ImGui.TextUnformatted("Color Palette");
                 ImGui.Indent();
-                ImGui.ColorEdit4("Command##", ref m_ColorPalette[(int) COLOR_PALETTE.COL_COMMAND], flags);
+                ImGui.ColorEdit4("Command##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_COMMAND], flags);
                 ImGui.ColorEdit4("Log##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_LOG], flags);
                 ImGui.ColorEdit4("Warning##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_WARNING], flags);
                 ImGui.ColorEdit4("Error##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_ERROR], flags);
@@ -199,24 +206,24 @@ public class WidgetQonsoleView : MonoBehaviour
             if (ImGui.BeginMenu("Scripts"))
             {
                 // Show registered scripts.
-            //    for (const auto &scr_pair : m_ConsoleSystem.Scripts())
-            //{
-            //        if (ImGui.MenuItem(scr_pair.first.c_str()))
-            //        {
-            //            m_ConsoleSystem.RunScript(scr_pair.first);
-            //            m_ScrollToBottom = true;
-            //        }
-            //    }
+                //    for (const auto &scr_pair : m_ConsoleSystem.Scripts())
+                //{
+                //        if (ImGui.MenuItem(scr_pair.first.c_str()))
+                //        {
+                //            m_ConsoleSystem.RunScript(scr_pair.first);
+                //            m_ScrollToBottom = true;
+                //        }
+                //    }
 
-            //    // Reload scripts.
-            //    ImGui.Separator();
-            //    if (ImGui.Button("Reload Scripts", new Vector2(ImGui.GetColumnWidth(), 0)))
-            //    {
-            //        for (const auto &scr_pair : m_ConsoleSystem.Scripts())
-            //    {
-            //            scr_pair.second->Reload();
-            //        }
-            //    }
+                //    // Reload scripts.
+                //    ImGui.Separator();
+                //    if (ImGui.Button("Reload Scripts", new Vector2(ImGui.GetColumnWidth(), 0)))
+                //    {
+                //        for (const auto &scr_pair : m_ConsoleSystem.Scripts())
+                //    {
+                //            scr_pair.second->Reload();
+                //        }
+                //    }
                 ImGui.EndMenu();
             }
 
@@ -276,7 +283,7 @@ public class WidgetQonsoleView : MonoBehaviour
             ImGui.PushTextWrapPos();
 
             // Display items.
-            foreach (var item in Items())
+            foreach (var item in _items)
             {
                 //// Exit if word is filtered.
                 //if (!m_TextFilter.PassFilter(item.Get().c_str()))
@@ -294,13 +301,13 @@ public class WidgetQonsoleView : MonoBehaviour
                 {
                     //ImGui.PushStyleColor(ImGuiCol.Text, m_ColorPalette[item.m_Type]);
                     //ImGui.TextUnformatted(item.Get().data());
-                    ImGui.TextUnformatted(item);
+                    ImGui.TextUnformatted(item.Message);
                     //ImGui.PopStyleColor();
                 }
                 else
                 {
                     //ImGui.TextUnformatted(item.Get().data());
-                    ImGui.TextUnformatted(item);
+                    ImGui.TextUnformatted(item.Message);
                 }
 
 
@@ -335,45 +342,41 @@ public class WidgetQonsoleView : MonoBehaviour
         }
     }
 
-    private byte[] buffer = new byte[32];
+    private string inputBuffer = "";
 
 
     void InputBar()
     {
         // Variables.
-        ImGuiInputTextFlags inputTextFlags =
-            ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackCharFilter | ImGuiInputTextFlags.CallbackCompletion |
-            ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CallbackAlways;
+        //ImGuiInputTextFlags inputTextFlags = ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackCharFilter | ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CallbackAlways;
 
         // Only reclaim after enter key is pressed!
         bool reclaimFocus = false;
 
         // Input widget. (Width an always fixed width)
         ImGui.PushItemWidth(-128);
-        if (ImGui.InputText("Input", buffer, 32/*inputTextFlags, InputCallback, this*/))
+        if (ImGui.InputText("Input", ref inputBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue))
         {
-            if (ImGui.IsKeyPressed(9))
+            // Validate.
+            if (!string.IsNullOrEmpty(inputBuffer))
             {
-                print("tab");
-            }
-            //// Validate.
-            //if (!m_Buffer.empty())
-            //{
-            //    // Run command line input.
-            //    m_ConsoleSystem.RunCommand(m_Buffer);
+                // Run command line input.
+                GlobalEventAggregator.EventAggregator.Publish(new EventConsoleEnteredText { Text = inputBuffer });
+                //m_ConsoleSystem.RunCommand(m_Buffer);
 
-            //    // Scroll to bottom after its ran.
-            //    m_ScrollToBottom = true;
-            //}
+                // Scroll to bottom after its ran.
+                m_ScrollToBottom = true;
+            }
 
             //// Keep focus.
             reclaimFocus = true;
 
             //// Clear command line.
-            Array.Fill<byte>(buffer, 0);
-            
+            inputBuffer = "";
+
         }
         ImGui.PopItemWidth();
+
 
         // Reset suggestions when client provides char input.
         if (ImGui.IsItemEdited() && !m_WasPrevFrameTabCompletion)
@@ -387,5 +390,4 @@ public class WidgetQonsoleView : MonoBehaviour
         if (reclaimFocus)
             ImGui.SetKeyboardFocusHere(-1); // Focus on command line after clearing.
     }
-
 }
