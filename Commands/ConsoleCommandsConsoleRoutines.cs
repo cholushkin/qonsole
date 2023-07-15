@@ -5,7 +5,7 @@ namespace Qonsole
 {
     public class ConsoleCommandsConsoleRoutines
     {
-        [ConsoleMethod("commands.list", "ls", "Print list of all available commands"), UnityEngine.Scripting.Preserve]
+        [ConsoleMethod("console.list", "ls", "Print list of all available commands"), UnityEngine.Scripting.Preserve]
 		public static void PrintAllCommands()
         {
             int length = 25;
@@ -32,5 +32,5 @@ namespace Qonsole
         // list variables
         // reset variables to it's default values
 
-	}
+    }
 }

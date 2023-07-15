@@ -10,12 +10,15 @@ namespace Qonsole
         public class LogEntry
         {
             public string Message { get; }
+            public string StackTrace { get; }
+            public LogType LogType { get; }
 
-            public LogEntry(string message)
+            public LogEntry(string message, string stackTrace, LogType logType)
             {
                 Message = message;
+                StackTrace = stackTrace;
+                LogType = logType;
             }
-
         }
 
 
@@ -65,7 +68,7 @@ namespace Qonsole
 
         void ReceivedLog(string logString, string stackTrace, LogType logType)
         {
-            _items.Enqueue(new LogEntry(logString));
+            _items.Enqueue(new LogEntry(logString, stackTrace, logType));
         }
     }
 }

@@ -17,20 +17,17 @@ public class WidgetQonsoleView : MonoBehaviour
         public string Text;
     }
 
-    enum COLOR_PALETTE
+    [Serializable]
+    public class ColorPalette
     {
-        // This four have to match the csys item type enum.
+        public Color Error;
+        public Color Assert;
+        public Color Exception;
+        public Color Warning;
+        public Color Log;
+    }
 
-        COL_COMMAND = 0,    //!< Color for command logs
-        COL_LOG,            //!< Color for in-command logs
-        COL_WARNING,        //!< Color for warnings logs
-        COL_ERROR,          //!< Color for error logs
-        COL_INFO,            //!< Color for info logs
-
-        COL_TIMESTAMP,      //!< Color for timestamps
-
-        COL_COUNT            //!< For bookkeeping purposes
-    };
+    public ColorPalette TextColorPalette;
 
     private const float inputBufferSize = 1024;
     private float m_WindowAlpha = 1f;
@@ -42,8 +39,8 @@ public class WidgetQonsoleView : MonoBehaviour
     private bool m_TimeStamps;
     private bool m_ScrollToBottom;
     private bool m_WasPrevFrameTabCompletion;
-    private readonly Vector4[] m_ColorPalette = new Vector4[(int)COLOR_PALETTE.COL_COUNT];
     ImGuiTextFilter m_TextFilter;    //!< Logging filer
+    
 
 
     private CircularBuffer<WidgetQonsoleController.LogEntry> _items;
@@ -185,12 +182,13 @@ public class WidgetQonsoleView : MonoBehaviour
 
                 ImGui.TextUnformatted("Color Palette");
                 ImGui.Indent();
-                ImGui.ColorEdit4("Command##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_COMMAND], flags);
-                ImGui.ColorEdit4("Log##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_LOG], flags);
-                ImGui.ColorEdit4("Warning##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_WARNING], flags);
-                ImGui.ColorEdit4("Error##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_ERROR], flags);
-                ImGui.ColorEdit4("Info##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_INFO], flags);
-                ImGui.ColorEdit4("Time Stamp##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_TIMESTAMP], flags);
+
+                //ImGui.ColorEdit4("Command##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_COMMAND], flags);
+                //ImGui.ColorEdit4("Log##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_LOG], flags);
+                //ImGui.ColorEdit4("Warning##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_WARNING], flags);
+                //ImGui.ColorEdit4("Error##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_ERROR], flags);
+                //ImGui.ColorEdit4("Info##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_INFO], flags);
+                //ImGui.ColorEdit4("Time Stamp##", ref m_ColorPalette[(int)COLOR_PALETTE.COL_TIMESTAMP], flags);
                 ImGui.Unindent();
 
                 ImGui.Separator();
@@ -243,12 +241,6 @@ public class WidgetQonsoleView : MonoBehaviour
 
         // Style
         m_WindowAlpha = 1;
-        m_ColorPalette[(int)COLOR_PALETTE.COL_COMMAND] = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-        m_ColorPalette[(int)COLOR_PALETTE.COL_LOG] = new Vector4(1.0f, 1.0f, 1.0f, 0.5f);
-        m_ColorPalette[(int)COLOR_PALETTE.COL_WARNING] = new Vector4(1.0f, 0.87f, 0.37f, 1.0f);
-        m_ColorPalette[(int)COLOR_PALETTE.COL_ERROR] = new Vector4(1.0f, 0.365f, 0.365f, 1.0f);
-        m_ColorPalette[(int)COLOR_PALETTE.COL_INFO] = new Vector4(0.46f, 0.96f, 0.46f, 1.0f);
-        m_ColorPalette[(int)COLOR_PALETTE.COL_TIMESTAMP] = new Vector4(1.0f, 1.0f, 1.0f, 0.5f);
     }
 
     void HelpMaker(string desc)
@@ -299,10 +291,9 @@ public class WidgetQonsoleView : MonoBehaviour
                 // Items.
                 if (m_ColoredOutput)
                 {
-                    //ImGui.PushStyleColor(ImGuiCol.Text, m_ColorPalette[item.m_Type]);
-                    //ImGui.TextUnformatted(item.Get().data());
+                    ImGui.PushStyleColor(ImGuiCol.Text, LogTypeToColor(item.LogType));
                     ImGui.TextUnformatted(item.Message);
-                    //ImGui.PopStyleColor();
+                    ImGui.PopStyleColor();
                 }
                 else
                 {
@@ -389,5 +380,21 @@ public class WidgetQonsoleView : MonoBehaviour
         ImGui.SetItemDefaultFocus();
         if (reclaimFocus)
             ImGui.SetKeyboardFocusHere(-1); // Focus on command line after clearing.
+    }
+
+    private Color LogTypeToColor(LogType logType)
+    {
+        if (logType == LogType.Exception)
+            return TextColorPalette.Exception;
+        if (logType == LogType.Assert)
+            return TextColorPalette.Assert;
+        if (logType == LogType.Error)
+            return TextColorPalette.Error;
+        if (logType == LogType.Warning)
+            return TextColorPalette.Warning;
+        if (logType == LogType.Log)
+            return TextColorPalette.Log;
+
+        return Color.white;
     }
 }
