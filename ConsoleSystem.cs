@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing.Printing;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Debug = UnityEngine.Debug;
+
 
 namespace Qonsole
 {
@@ -39,6 +42,30 @@ namespace Qonsole
             }
         }
 
+        public class ConsoleVariableInfo
+        {
+
+            public ConsoleVariableInfo(PropertyInfo prop, object instance, string fullName, string aliasName, string signature)
+            {
+                Property = prop;
+                Instance = instance;
+                FullName = fullName;
+                AliasName = aliasName;
+                Signature = signature;
+            }
+
+            public readonly PropertyInfo Property;
+            public readonly object Instance;
+            public readonly string FullName;
+            public readonly string AliasName;
+            public readonly string Signature;
+
+            //public bool IsValid()
+            //{
+            //    return Property.GetSetMethod().IsStatic s || (Instance != null && !Instance.Equals(null));
+            //}
+        }
+
         // All the readable names of accepted types
         private static readonly Dictionary<Type, string> typeReadableNames = new Dictionary<Type, string>()
         {
@@ -59,7 +86,9 @@ namespace Qonsole
         };
 
 
-        public static List<ConsoleMethodInfo> Methods { get; } = new();
+        public static List<ConsoleMethodInfo> Methods { get; } = new(128);
+        public static List<(string, ConsoleMethodInfo)> MethodSearchTable { get; } = new(128);
+        public static List<ConsoleVariableInfo> Variables { get; } = new();
 
 
         // CompareInfo used for case-insensitive command name comparison
@@ -68,10 +97,6 @@ namespace Qonsole
 
         static ConsoleSystem()
         {
-            //AddCommand("help", "Prints all commands", LogAllCommands);
-            //AddCommand<string>("help", "Prints all matching commands", LogAllCommandsWithName);
-            //AddCommand("sysinfo", "Prints system information", LogSystemInfo);
-
 #if UNITY_EDITOR || !NETFX_CORE
             // Find all [ConsoleMethod] functions
             // Don't search built-in assemblies for console methods since they can't have any
@@ -130,12 +155,23 @@ namespace Qonsole
                 {
                     foreach (Type type in assembly.GetExportedTypes())
                     {
+                        // Parse methods
                         foreach (MethodInfo method in type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly))
                         {
                             foreach (object attribute in method.GetCustomAttributes(typeof(ConsoleMethodAttribute), false))
                             {
                                 if (attribute is ConsoleMethodAttribute consoleMethod)
                                     AddCommand(consoleMethod.FullName, consoleMethod.AliasName, consoleMethod.Description, method, null, consoleMethod.ParameterNames);
+                            }
+                        }
+
+                        // Parse properties
+                        foreach (PropertyInfo prop in type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly))
+                        {
+                            foreach (object attribute in prop.GetCustomAttributes(typeof(ConsoleVariableAttribute), false))
+                            {
+                                if (attribute is ConsoleVariableAttribute consoleVariable)
+                                    AddVariable(consoleVariable.FullName, consoleVariable.AliasName, consoleVariable.Description, prop, null);
                             }
                         }
                     }
@@ -150,24 +186,27 @@ namespace Qonsole
         }
 
 
-        private static void AddCommand(string command, string aliasName, string description, MethodInfo method, object instance, string[] parameterNames)
+        private static void AddCommand(string command, string aliasName, string description, MethodInfo method, object instance, string[] parameterDescription)
         {
+            command = command.ToLower().Trim();
+            aliasName = aliasName.ToLower().Trim();
+
             // todo: also add to alias search table
 
-            if (string.IsNullOrEmpty(command))
+            if (string.IsNullOrEmpty(command) || string.IsNullOrEmpty(aliasName))
             {
                 Debug.LogError("Command name can't be empty!");
                 return;
             }
 
             command = command.Trim();
-            if (command.IndexOf(' ') >= 0)
+            if (!IsValidAliasIdentifier(aliasName) ||  !IsValidFullNameIdentifier(command))
             {
-                Debug.LogError("Command name can't contain whitespace: " + command);
+                Debug.LogError("Command name must be a valid identifier name!");
                 return;
             }
 
-            // Fetch the parameters of the class
+            // Fetch the parameters of the method
             ParameterInfo[] parameters = method.GetParameters();
             Assert.IsNotNull(parameters);
 
@@ -191,55 +230,17 @@ namespace Qonsole
                 }
             }
 
-            int commandIndex = FindCommandIndex(command);
-            if (commandIndex < 0)
-                commandIndex = ~commandIndex;
-            else
+            var existingMethod = Methods.FirstOrDefault(x => (x.AliasName == aliasName || x.FullName == command));
+            if (existingMethod != null)
             {
-                int commandFirstIndex = commandIndex;
-                int commandLastIndex = commandIndex;
-
-                while (commandFirstIndex > 0 && caseInsensitiveComparer.Compare(Methods[commandFirstIndex - 1].FullName, command, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) == 0)
-                    commandFirstIndex--;
-                while (commandLastIndex < Methods.Count - 1 && caseInsensitiveComparer.Compare(Methods[commandLastIndex + 1].FullName, command, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) == 0)
-                    commandLastIndex++;
-
-                commandIndex = commandFirstIndex;
-                for (int i = commandFirstIndex; i <= commandLastIndex; i++)
-                {
-                    int parameterCountDiff = Methods[i].ParameterTypes.Length - parameterTypes.Length;
-                    if (parameterCountDiff <= 0)
-                    {
-                        // We are sorting the commands in 2 steps:
-                        // 1: Sorting by their 'command' names which is handled by FindCommandIndex
-                        // 2: Sorting by their parameter counts which is handled here (parameterCountDiff <= 0)
-                        commandIndex = i + 1;
-
-                        // Check if this command has been registered before and if it is, overwrite that command
-                        if (parameterCountDiff == 0)
-                        {
-                            int j = 0;
-                            while (j < parameterTypes.Length && parameterTypes[j] == Methods[i].ParameterTypes[j])
-                                j++;
-
-                            if (j >= parameterTypes.Length)
-                            {
-                                commandIndex = i;
-                                commandLastIndex--;
-                                Methods.RemoveAt(i--);
-                            }
-                        }
-                    }
-                }
+                Debug.LogError($"Method with such alias or command name is already registered: {command} {aliasName} ");
+                return;
             }
 
             // Create the command
             StringBuilder methodSignature = new StringBuilder(256);
             string[] parameterSignatures = new string[parameterTypes.Length];
 
-#if USE_BOLD_COMMAND_SIGNATURES
-			methodSignature.Append( "<b>" );
-#endif
             methodSignature.Append(command);
 
             if (parameterTypes.Length > 0)
@@ -251,7 +252,7 @@ namespace Qonsole
                     int parameterSignatureStartIndex = methodSignature.Length;
 
                     var defaultValue = parameters[i].DefaultValue.ToString();
-                    methodSignature.Append("[").Append(GetTypeReadableName(parameterTypes[i])).Append(" ").Append((parameterNames != null && i < parameterNames.Length && !string.IsNullOrEmpty(parameterNames[i])) ? parameterNames[i] : parameters[i].Name).Append("]");
+                    methodSignature.Append("[").Append(GetTypeReadableName(parameterTypes[i])).Append(" ").Append((parameterDescription != null && i < parameterDescription.Length && !string.IsNullOrEmpty(parameterDescription[i])) ? parameterDescription[i] : parameters[i].Name).Append("]");
                     //methodSignature.Append($"[{GetTypeReadableName(parameterTypes[i])} {}]")
 
 
@@ -262,14 +263,49 @@ namespace Qonsole
                 }
             }
 
-#if USE_BOLD_COMMAND_SIGNATURES
-			methodSignature.Append( "</b>" );
-#endif
-
             if (!string.IsNullOrEmpty(description))
                 methodSignature.Append(": ").Append(description);
 
-            Methods.Insert(commandIndex, new ConsoleMethodInfo(method, parameterTypes, instance, command, aliasName, methodSignature.ToString(), parameterSignatures));
+            var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, command, aliasName, methodSignature.ToString(), parameterSignatures);
+            Methods.Add(methodInfo);
+            MethodSearchTable.Add((command, methodInfo));
+            MethodSearchTable.Add((aliasName, methodInfo));
+        }
+
+        public static void SortMethodsTable()
+        {
+            Methods.Sort(
+                (e1, e2) => String.Compare(e1.FullName, e2.FullName, StringComparison.Ordinal)
+            );
+        }
+
+        public static void PrepareSearchTable()
+        {
+            MethodSearchTable.Sort(
+                (e1, e2) => String.Compare(e1.Item1, e2.Item1, StringComparison.Ordinal)
+            );
+        }
+
+
+        private static void AddVariable(string varFullName, string aliasName, string description, PropertyInfo prop, object instance)
+        {
+            if (string.IsNullOrEmpty(varFullName) || string.IsNullOrEmpty(aliasName))
+            {
+                Debug.LogError("Command name can't be empty!");
+                return;
+            }
+
+            varFullName = varFullName.Trim();
+            if (!IsValidAliasIdentifier(aliasName) || !IsValidFullNameIdentifier(varFullName))
+            {
+                Debug.LogError("Command name must be a valid identifier name!");
+                return;
+            }
+
+            // Create the command
+            string variableSignature = $"[{GetTypeReadableName(prop.PropertyType)}] {varFullName} - {description}";
+
+            Variables.Add( new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature) );
         }
 
         // Find command's index in the list of registered commands using binary search
@@ -334,6 +370,24 @@ namespace Qonsole
 
         public static bool IsParseableType(Type type)
         {
+            return true;
+        }
+
+        public static bool IsValidAliasIdentifier(string name)
+        {
+            // todo:
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            return true;
+        }
+
+        public static bool IsValidFullNameIdentifier(string name)
+        {
+            // todo:
+            if (string.IsNullOrEmpty(name))
+                return false;
+
             return true;
         }
 

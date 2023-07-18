@@ -293,6 +293,8 @@ public class WidgetQonsoleView : MonoBehaviour
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, LogTypeToColor(item.LogType));
                     ImGui.TextUnformatted(item.Message);
+                    //ImGui.SameLine();
+                    //ImGUIExtension.HelpMarker("aaaa");
                     ImGui.PopStyleColor();
                 }
                 else

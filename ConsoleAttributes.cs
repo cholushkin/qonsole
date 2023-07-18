@@ -20,7 +20,7 @@ namespace Qonsole
 	}
 
 
-    [AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
     public class ConsoleVariableAttribute : Attribute
     {
         public string FullName { get; } // Full name including path stored in nested tables in Lua
