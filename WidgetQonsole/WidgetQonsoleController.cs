@@ -49,10 +49,17 @@ namespace Qonsole
             ConsoleSystem.SortMethodsTable();
             ConsoleSystem.PrepareSearchTable();
 
+            RegisterParameterTypes();
             RegisterLuaFunctions();
             RegisterLuaVariables();
 
             Script.DoFile("Autoexec");
+        }
+
+        private void RegisterParameterTypes()
+        {
+            //UserData.RegisterType<ConsoleCommandsZombobox.Weapon>();
+            //Script.Globals["Weapon"] = typeof(ConsoleCommandsZombobox.Weapon);
         }
 
         private void RegisterLuaFunctions()

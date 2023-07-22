@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using MoonSharp;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Debug = UnityEngine.Debug;
@@ -23,9 +24,11 @@ namespace Qonsole
             public readonly string FullName;
             public readonly string AliasName;
             public readonly string Signature;
+            public readonly string CmdDescription;
+
             public readonly string[] ParameterDescriptions;
 
-            public ConsoleMethodInfo(MethodInfo method, Type[] parameterTypes, object instance, string fullName, string aliasName, string signature, string[] parameterDescriptions)
+            public ConsoleMethodInfo(MethodInfo method, Type[] parameterTypes, object instance, string fullName, string aliasName, string signature, string cmdDescription, string[] parameterDescriptions)
             {
                 Method = method;
                 ParameterTypes = parameterTypes;
@@ -33,6 +36,7 @@ namespace Qonsole
                 FullName = fullName;
                 AliasName = aliasName;
                 Signature = signature;
+                CmdDescription = cmdDescription;
                 ParameterDescriptions = parameterDescriptions;
             }
 
@@ -183,6 +187,7 @@ namespace Qonsole
                     Debug.LogError($"Couldn't search assembly for [ConsoleMethod] attributes: {assemblyName}\n{e}");
                 }
             }
+            UnityCustomConvertors.RegisterCustomConvertors();
         }
 
 
@@ -268,7 +273,7 @@ namespace Qonsole
             //if (!string.IsNullOrEmpty(description))
             //    methodSignature.Append(": ").Append(description);
 
-            var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, parameterDescriptions);
+            var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, description, parameterDescriptions);
             Methods.Add(methodInfo);
             MethodSearchTable.Add((commandFullName, methodInfo));
             MethodSearchTable.Add((aliasName, methodInfo));
