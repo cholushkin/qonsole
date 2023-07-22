@@ -23,9 +23,9 @@ namespace Qonsole
             public readonly string FullName;
             public readonly string AliasName;
             public readonly string Signature;
-            public readonly string[] Parameters;
+            public readonly string[] ParameterDescriptions;
 
-            public ConsoleMethodInfo(MethodInfo method, Type[] parameterTypes, object instance, string fullName, string aliasName, string signature, string[] parameters)
+            public ConsoleMethodInfo(MethodInfo method, Type[] parameterTypes, object instance, string fullName, string aliasName, string signature, string[] parameterDescriptions)
             {
                 Method = method;
                 ParameterTypes = parameterTypes;
@@ -33,7 +33,7 @@ namespace Qonsole
                 FullName = fullName;
                 AliasName = aliasName;
                 Signature = signature;
-                Parameters = parameters;
+                ParameterDescriptions = parameterDescriptions;
             }
 
             public bool IsValid()
@@ -161,7 +161,7 @@ namespace Qonsole
                             foreach (object attribute in method.GetCustomAttributes(typeof(ConsoleMethodAttribute), false))
                             {
                                 if (attribute is ConsoleMethodAttribute consoleMethod)
-                                    AddCommand(consoleMethod.FullName, consoleMethod.AliasName, consoleMethod.Description, method, null, consoleMethod.ParameterNames);
+                                    AddCommand(consoleMethod.FullName, consoleMethod.AliasName, consoleMethod.Description, method, null, consoleMethod.ParameterDescriptions);
                             }
                         }
 
@@ -186,21 +186,21 @@ namespace Qonsole
         }
 
 
-        private static void AddCommand(string command, string aliasName, string description, MethodInfo method, object instance, string[] parameterDescription)
+        private static void AddCommand(string commandFullName, string aliasName, string description, MethodInfo method, object instance, string[] parameterDescription)
         {
-            command = command.ToLower().Trim();
+            commandFullName = commandFullName.ToLower().Trim();
             aliasName = aliasName.ToLower().Trim();
 
             // todo: also add to alias search table
 
-            if (string.IsNullOrEmpty(command) || string.IsNullOrEmpty(aliasName))
+            if (string.IsNullOrEmpty(commandFullName) || string.IsNullOrEmpty(aliasName))
             {
                 Debug.LogError("Command name can't be empty!");
                 return;
             }
 
-            command = command.Trim();
-            if (!IsValidAliasIdentifier(aliasName) ||  !IsValidFullNameIdentifier(command))
+            commandFullName = commandFullName.Trim();
+            if (!IsValidAliasIdentifier(aliasName) ||  !IsValidFullNameIdentifier(commandFullName))
             {
                 Debug.LogError("Command name must be a valid identifier name!");
                 return;
@@ -230,46 +230,77 @@ namespace Qonsole
                 }
             }
 
-            var existingMethod = Methods.FirstOrDefault(x => (x.AliasName == aliasName || x.FullName == command));
+            var existingMethod = Methods.FirstOrDefault(x => (x.AliasName == aliasName || x.FullName == commandFullName));
             if (existingMethod != null)
             {
-                Debug.LogError($"Method with such alias or command name is already registered: {command} {aliasName} ");
+                Debug.LogError($"Method with such alias or command name is already registered: {commandFullName} {aliasName} ");
                 return;
             }
 
             // Create the command
-            StringBuilder methodSignature = new StringBuilder(256);
-            string[] parameterSignatures = new string[parameterTypes.Length];
+            var methodSignature = CreateMethodSignature(aliasName, commandFullName, parameters);
+            var parameterDescriptions = CreateParameterDescriptions(parameters, parameterDescription);
+            //StringBuilder methodSignature = new StringBuilder(256);
+            //string[] parameterSignatures = new string[parameterTypes.Length];
 
-            methodSignature.Append(command);
+            //methodSignature.Append(command);
 
-            if (parameterTypes.Length > 0)
+            //if (parameterTypes.Length > 0)
+            //{
+            //    methodSignature.Append(" ");
+
+            //    for (int i = 0; i < parameterTypes.Length; i++)
+            //    {
+            //        int parameterSignatureStartIndex = methodSignature.Length;
+
+            //        var defaultValue = parameters[i].DefaultValue.ToString();
+            //        methodSignature.Append("[").Append(GetTypeReadableName(parameterTypes[i])).Append(" ").Append((parameterDescription != null && i < parameterDescription.Length && !string.IsNullOrEmpty(parameterDescription[i])) ? parameterDescription[i] : parameters[i].Name).Append("]");
+            //        //methodSignature.Append($"[{GetTypeReadableName(parameterTypes[i])} {}]")
+
+
+            //        if (i < parameterTypes.Length - 1)
+            //            methodSignature.Append(" ");
+
+            //        parameterSignatures[i] = methodSignature.ToString(parameterSignatureStartIndex, methodSignature.Length - parameterSignatureStartIndex);
+            //    }
+            //}
+
+            //if (!string.IsNullOrEmpty(description))
+            //    methodSignature.Append(": ").Append(description);
+
+            var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, parameterDescriptions);
+            Methods.Add(methodInfo);
+            MethodSearchTable.Add((commandFullName, methodInfo));
+            MethodSearchTable.Add((aliasName, methodInfo));
+        }
+
+        private static string[] CreateParameterDescriptions(ParameterInfo[] parameters, string[] parameterDescription)
+        {
+            int index = 0;
+            string[] res = new string[parameters.Length];
+            foreach (var parameterInfo in parameters)
             {
-                methodSignature.Append(" ");
-
-                for (int i = 0; i < parameterTypes.Length; i++)
-                {
-                    int parameterSignatureStartIndex = methodSignature.Length;
-
-                    var defaultValue = parameters[i].DefaultValue.ToString();
-                    methodSignature.Append("[").Append(GetTypeReadableName(parameterTypes[i])).Append(" ").Append((parameterDescription != null && i < parameterDescription.Length && !string.IsNullOrEmpty(parameterDescription[i])) ? parameterDescription[i] : parameters[i].Name).Append("]");
-                    //methodSignature.Append($"[{GetTypeReadableName(parameterTypes[i])} {}]")
-
-
-                    if (i < parameterTypes.Length - 1)
-                        methodSignature.Append(" ");
-
-                    parameterSignatures[i] = methodSignature.ToString(parameterSignatureStartIndex, methodSignature.Length - parameterSignatureStartIndex);
-                }
+                var description = index < parameterDescription.Length ? parameterDescription[index] : "No description;";
+                res[index] = $"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterInfo.Name} - {description}";
+                ++index;
             }
 
-            if (!string.IsNullOrEmpty(description))
-                methodSignature.Append(": ").Append(description);
+            return res;
+        }
 
-            var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, command, aliasName, methodSignature.ToString(), parameterSignatures);
-            Methods.Add(methodInfo);
-            MethodSearchTable.Add((command, methodInfo));
-            MethodSearchTable.Add((aliasName, methodInfo));
+        private static string CreateMethodSignature(string aliasName, string commandFullName, ParameterInfo[] parameters)
+        {
+            StringBuilder sb = new StringBuilder(256);
+            var index = 0;
+            foreach (var parameterInfo in parameters)
+            {
+                sb.Append($"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterInfo.Name}");
+                if (index != parameters.Length-1)
+                    sb.Append(", ");
+                ++index;
+            }
+
+            return $"{commandFullName}<{aliasName}>({sb.ToString()})";
         }
 
         public static void SortMethodsTable()
@@ -375,11 +406,10 @@ namespace Qonsole
 
         public static bool IsValidAliasIdentifier(string name)
         {
-            // todo:
             if (string.IsNullOrEmpty(name))
                 return false;
 
-            return true;
+            return char.IsLetter(name[0]) && name.All(chr => char.IsLetterOrDigit(chr) || chr == '_');
         }
 
         public static bool IsValidFullNameIdentifier(string name)

@@ -1,9 +1,13 @@
+-- Note: all commands and variables must be converted to lower case and trimmed before passed here
+
 __CSCommandsRegister = 
 {   
 }
 __CSVariablesRegister = 
 {
 }
+
+
 
 local function IsEmpty(s)
   return s == nil or s == ''
@@ -14,6 +18,9 @@ function PrintTable(t, nestLev, maxNest)
     print("<nil>")
     return
   end
+  nestLev = nestLev or 1
+  maxNest = maxNest or (nestLev + 1)
+
   local curIdent = ""
   for i = 1, nestLev-1  do
       curIdent = curIdent..".."
@@ -105,12 +112,9 @@ function AddToCommandRegister(alias, fullName, func)
     return
   end  
   
-  alias = string.lower(alias)
-  fullName = string.lower(fullName)
-  
   -- Check for existing alias
   for k,v in pairs(__CSCommandsRegister) do
-    if(string.lower(v[1]) == alias) then
+    if(v[1] == alias) then
       print("Error: Command with alias "..alias.." already exists. Skipping registration for command "..fullName)
       return
     end
@@ -118,7 +122,7 @@ function AddToCommandRegister(alias, fullName, func)
   
   -- Check for existing full path
   for k,v in pairs(__CSCommandsRegister) do
-    if(string.lower(v[2]) == fullName) then
+    if(v[2] == fullName) then
       print("Error: Command with fullName "..fullName.." already exists. Skipping registration for command "..fullName)
       return
     end
@@ -178,53 +182,37 @@ function InjectMethod(parentTable, methodName, func)
     parentTable[methodName] = func
 end
 
+function CheckFreeName(name)
+    return _G[name] == nil
+end
+
 function RegisterCommands()
+    
+    -- Before the registration of global commands check if there any tables or variables
+    -- in _G which starts from any of Registered commands root table or alias. This is needed to 
+    -- prevent writing in existing global tables or variables
+
     for k,v in pairs(__CSCommandsRegister) do
-        print("Registering "..v[2])
-        local tprev, tlast, lastName = PrepareCommandPath(v[2])        
-        InjectMethod(tprev, lastName, v[3]) -- add fullnamed command
-        
-        print("Registering "..v[1])
-        local tprev, tlast, lastName = PrepareCommandPath(v[1])        
-        InjectMethod(tprev, lastName, v[3]) -- add alias command        
+        -- Fullnamed command
+        local domains = SplitString(v[2], ".")
+        if CheckFreeName(domains[1]) == false then
+            print("Error: global name is in use: '"..domains[1].."'. Your command name also starts from it - "..v[2] )            
+        end
+
+        -- Alias command        
+        if CheckFreeName(v[1]) == false then
+            print("Error: global name is in use: '"..v[1].."'. Your alias also has such name")            
+        end
     end
+    
+    -- Register aliases and commands
+    for k,v in pairs(__CSCommandsRegister) do        
+	local domains = SplitString(v[2], ".")
+	
+        local tprev, tlast, lastName = PrepareCommandPath(domains)        
+        InjectMethod(tprev, lastName, v[3]) 
+	
+	local tprev, tlast, lastName = PrepareCommandPath(v[1])        
+        InjectMethod(tprev, lastName, v[3]) 
+    end        
 end
-
--- test:
---AddToCommandRegister("Exit", "exit", function() print("Exit") end);
---AddToCommandRegister("DirLs", "system.directories.list", function() print("DirLs") end)
---AddToCommandRegister("DirCreate", "system.directories.create", function() print("DirCreate") end)
---AddToCommandRegister("DirDelete", "system.directories.delete", function() print("DirDelete") end)
---AddToCommandRegister("DirDelete", "system.directories.delete2", function() print("DirDelete2") end)
---AddToCommandRegister("aaa", "system.directories.list", function() print("DirDelete2") end)
-
---RegisterCommands()
---PrintTable(_G,1,1)
---[[
-
-
---PrintTable(__CSCommandsRegister, 1, 10)
-
--- Before the registration of global commands check if there any tables or variables
--- in _G which starts from any of Registered commands root table or alias. This is needed to 
--- prevent writing in existing global tables or variables
-for k,regItem in pairs(__CSCommandsRegister) do
-  -- Check alias
-  if(_G[string.lower(regItem[1])] ~= nil) then 
-    print("Alias conflict with core _G table - G."..string.lower(regItem[1]))
-  end
-  
-  -- Check fullName
-  local startOfFullName = SplitString(string.lower(regItem[2]), ".")[1]
-  if(_G[startOfFullName] ~= nil) then 
-    print("fullName conflict with core _G table - G."..startOfFullName)
-  end  
-end
-
---for k,regItem in pairs(__CSCommandsRegister) do
---  PrepareCommandPath(regItem[1])
---  PrepareCommandPath(regItem[2])
---end
-PrintTable(_G, 1, 1)
-
---]]

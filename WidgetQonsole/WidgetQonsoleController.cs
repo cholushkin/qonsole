@@ -1,12 +1,8 @@
 using System;
-using System.Reflection;
 using System.Text;
 using Alg;
 using Gamelib.DataStructures;
 using MoonSharp.Interpreter;
-using MoonSharp.Interpreter.Interop;
-using MoonSharp.Interpreter.Interop.BasicDescriptors;
-using UnityEditor.Search;
 using UnityEngine;
 
 namespace Qonsole
@@ -49,13 +45,14 @@ namespace Qonsole
             
             Script = new Script();
             Script.DoFile("QonsoleLuaScripts/LuaImplHelpers");
-            Script.DoFile("Autoexec");
 
             ConsoleSystem.SortMethodsTable();
             ConsoleSystem.PrepareSearchTable();
 
             RegisterLuaFunctions();
             RegisterLuaVariables();
+
+            Script.DoFile("Autoexec");
         }
 
         private void RegisterLuaFunctions()

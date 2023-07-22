@@ -5,7 +5,7 @@ namespace Qonsole
 {
     public class ConsoleCommandsConsoleRoutines
     {
-        [ConsoleMethod("console.list", "help", "Print the list of all available commands"), UnityEngine.Scripting.Preserve]
+        [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands"), UnityEngine.Scripting.Preserve]
 		public static void PrintAllCommands()
         {
             int length = 25;
@@ -27,7 +27,7 @@ namespace Qonsole
             Debug.Log(stringBuilder.ToString());
         }
 
-        [ConsoleMethod("console.listvar", "lsv", "Print the list of all available variables"), UnityEngine.Scripting.Preserve]
+        [ConsoleMethod("console.var.list", "lsv", "Print the list of all available variables"), UnityEngine.Scripting.Preserve]
         public static void PrintAllVariables()
         {
             int length = 25;
@@ -61,9 +61,8 @@ namespace Qonsole
 
 
         // todo:
-        // help(command name)
-        // list variables
-        // reset variables to it's default values
+        // console.cmd.help - Print help for a specific command
+        // console.dumphelp - Print all cmds and vars help to the text file
 
     }
 }
