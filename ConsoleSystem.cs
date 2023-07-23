@@ -187,6 +187,8 @@ namespace Qonsole
                     Debug.LogError($"Couldn't search assembly for [ConsoleMethod] attributes: {assemblyName}\n{e}");
                 }
             }
+
+            UnityWrapperTypes.RegisterUnityWrapperTypes();
             UnityCustomConvertors.RegisterCustomConvertors();
         }
 

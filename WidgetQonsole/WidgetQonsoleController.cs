@@ -3,6 +3,7 @@ using System.Text;
 using Alg;
 using Gamelib.DataStructures;
 using MoonSharp.Interpreter;
+using MoonSharp.UnityWrapper;
 using UnityEngine;
 
 namespace Qonsole
@@ -49,11 +50,17 @@ namespace Qonsole
             ConsoleSystem.SortMethodsTable();
             ConsoleSystem.PrepareSearchTable();
 
+            RegisterLuaWrapperTypes();
             RegisterParameterTypes();
             RegisterLuaFunctions();
             RegisterLuaVariables();
 
             Script.DoFile("Autoexec");
+        }
+
+        private void RegisterLuaWrapperTypes()
+        {
+            LuaVector3.RegisterWrapperType(Script);
         }
 
         private void RegisterParameterTypes()
