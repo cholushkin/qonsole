@@ -286,7 +286,8 @@ namespace Qonsole
             foreach (var parameterInfo in parameters)
             {
                 var description = index < parameterDescription.Length ? parameterDescription[index] : "No description;";
-                res[index] = $"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterInfo.Name} - {description}";
+                var parameterName = parameterInfo.HasDefaultValue ? $"{parameterInfo.Name} = {parameterInfo.DefaultValue}" : $"{parameterInfo.Name}";
+                res[index] = $"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterName} - {description}";
                 ++index;
             }
 
@@ -299,7 +300,8 @@ namespace Qonsole
             var index = 0;
             foreach (var parameterInfo in parameters)
             {
-                sb.Append($"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterInfo.Name}");
+                var parameterName = parameterInfo.HasDefaultValue ? $"{parameterInfo.Name} = {parameterInfo.DefaultValue}" : $"{parameterInfo.Name}";
+                sb.Append($"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterName}");
                 if (index != parameters.Length-1)
                     sb.Append(", ");
                 ++index;
