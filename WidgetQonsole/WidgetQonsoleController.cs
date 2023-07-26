@@ -65,8 +65,18 @@ namespace Qonsole
 
         private void RegisterParameterTypes()
         {
-            //UserData.RegisterType<ConsoleCommandsZombobox.Weapon>();
-            //Script.Globals["Weapon"] = typeof(ConsoleCommandsZombobox.Weapon);
+            foreach (var consoleMethodInfo in ConsoleSystem.Methods)
+            {
+                foreach (var parType in consoleMethodInfo.ParameterTypes)
+                {
+                    if (!UserData.IsTypeRegistered(parType) && parType.IsEnum)
+                    {
+                        UserData.RegisterType(parType);
+                        // todo: check availability of the name
+                        Script.Globals[parType.Name] = parType;
+                    }
+                }
+            }
         }
 
         private void RegisterLuaFunctions()
