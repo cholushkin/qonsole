@@ -20,12 +20,10 @@ namespace Qonsole
             public readonly MethodInfo Method;
             public readonly Type[] ParameterTypes;
             public readonly object Instance;
-
             public readonly string FullName;
             public readonly string AliasName;
             public readonly string Signature;
             public readonly string CmdDescription;
-
             public readonly string[] ParameterDescriptions;
 
             public ConsoleMethodInfo(MethodInfo method, Type[] parameterTypes, object instance, string fullName, string aliasName, string signature, string cmdDescription, string[] parameterDescriptions)
@@ -48,21 +46,22 @@ namespace Qonsole
 
         public class ConsoleVariableInfo
         {
+            public readonly PropertyInfo Property;
+            public readonly object Instance;
+            public readonly string FullName;
+            public readonly string AliasName;
+            public readonly string Signature;
+            public readonly string Description;
 
-            public ConsoleVariableInfo(PropertyInfo prop, object instance, string fullName, string aliasName, string signature)
+            public ConsoleVariableInfo(PropertyInfo prop, object instance, string fullName, string aliasName, string signature, string description)
             {
                 Property = prop;
                 Instance = instance;
                 FullName = fullName;
                 AliasName = aliasName;
                 Signature = signature;
+                Description = description;
             }
-
-            public readonly PropertyInfo Property;
-            public readonly object Instance;
-            public readonly string FullName;
-            public readonly string AliasName;
-            public readonly string Signature;
 
             //public bool IsValid()
             //{
@@ -281,6 +280,30 @@ namespace Qonsole
             MethodSearchTable.Add((aliasName, methodInfo));
         }
 
+        private static void AddVariable(string varFullName, string aliasName, string description, PropertyInfo prop, object instance)
+        {
+            varFullName = varFullName.ToLower().Trim();
+            aliasName = aliasName.ToLower().Trim();
+
+
+            if (string.IsNullOrEmpty(varFullName) || string.IsNullOrEmpty(aliasName))
+            {
+                Debug.LogError("Command name can't be empty!");
+                return;
+            }
+
+            if (!IsValidAliasIdentifier(aliasName) || !IsValidFullNameIdentifier(varFullName))
+            {
+                Debug.LogError("Command name must be a valid identifier name!");
+                return;
+            }
+
+            // Create the command
+            string variableSignature = $"[{GetTypeReadableName(prop.PropertyType)}] {varFullName} - {description}";
+
+            Variables.Add(new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature, description));
+        }
+
         private static string[] CreateParameterDescriptions(ParameterInfo[] parameters, string[] parameterDescription)
         {
             int index = 0;
@@ -324,28 +347,6 @@ namespace Qonsole
             MethodSearchTable.Sort(
                 (e1, e2) => String.Compare(e1.Item1, e2.Item1, StringComparison.Ordinal)
             );
-        }
-
-
-        private static void AddVariable(string varFullName, string aliasName, string description, PropertyInfo prop, object instance)
-        {
-            if (string.IsNullOrEmpty(varFullName) || string.IsNullOrEmpty(aliasName))
-            {
-                Debug.LogError("Command name can't be empty!");
-                return;
-            }
-
-            varFullName = varFullName.Trim();
-            if (!IsValidAliasIdentifier(aliasName) || !IsValidFullNameIdentifier(varFullName))
-            {
-                Debug.LogError("Command name must be a valid identifier name!");
-                return;
-            }
-
-            // Create the command
-            string variableSignature = $"[{GetTypeReadableName(prop.PropertyType)}] {varFullName} - {description}";
-
-            Variables.Add( new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature) );
         }
 
         // Find command's index in the list of registered commands using binary search

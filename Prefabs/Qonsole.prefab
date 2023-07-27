@@ -65,6 +65,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f76a4e1bc7266642b3df529a723eb52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  LogChecker:
+    CheckerLevel: 2
+    Subsystem: Qonsole
+    Context: {fileID: 1667189582909058163}
+    AddSubsystem: 0
+    AddContextPath: 0
+    AddContextCoordinate: 0
+    AddContextHash: 0
+    AddContextSiblingIndex: 0
+    AddComponentName: 0
   View: {fileID: 6752539035765218899}
 --- !u!114 &8143856408981829002
 MonoBehaviour:

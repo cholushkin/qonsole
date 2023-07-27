@@ -3,6 +3,7 @@
 __CSCommandsRegister = 
 {   
 }
+
 __CSVariablesRegister = 
 {
 }
@@ -97,7 +98,7 @@ function PrepareCommandPath(path)
 end
 
 function AddToCommandRegister(alias, fullName, func)
-  if(__CSCommandsRegister == nil) then
+  if __CSCommandsRegister == nil then
     print("Error: There is no __CSCommandsRegister table avaialbe")
     return
   end
@@ -112,7 +113,7 @@ function AddToCommandRegister(alias, fullName, func)
     return
   end  
   
-  -- Check for existing alias
+  -- Check for existing alias in __CSCommandsRegister
   for k,v in pairs(__CSCommandsRegister) do
     if(v[1] == alias) then
       print("Error: Command with alias "..alias.." already exists. Skipping registration for command "..fullName)
@@ -120,7 +121,7 @@ function AddToCommandRegister(alias, fullName, func)
     end
   end
   
-  -- Check for existing full path
+  -- Check for existing full path in __CSCommandsRegister
   for k,v in pairs(__CSCommandsRegister) do
     if(v[2] == fullName) then
       print("Error: Command with fullName "..fullName.." already exists. Skipping registration for command "..fullName)
@@ -128,6 +129,45 @@ function AddToCommandRegister(alias, fullName, func)
     end
   end
   table.insert(__CSCommandsRegister, {alias, fullName, func})  
+end
+
+function AddToVariableRegister(alias, fullName, getter, setter)
+  if __CSVariablesRegister == nil then
+    print("Error: There is no __CSVariablesRegister table avaialbe")
+    return
+  end
+  
+  if getter == nil then
+    print("Error: Getter can't be nil (only setter could)")
+  end
+  
+  if IsEmpty(alias) then
+    print("Error: alias is empty")
+    return
+  end  
+  
+  if IsEmpty(fullName) then
+    print("Error: fullName is empty")
+    return
+  end
+  
+  -- Check for existing in __CSVariablesRegister alias
+  for k,v in pairs(__CSVariablesRegister) do
+    if(v[1] == alias) then
+      print("Error: Variable with alias "..alias.." already exists. Skipping registration for variable "..fullName)
+      return
+    end
+  end
+  
+  -- Check for existing full path in __CSVariablesRegister
+  for k,v in pairs(__CSVariablesRegister) do
+    if(v[2] == fullName) then
+      print("Error: Variable with fullName "..fullName.." already exists. Skipping registration for variable "..fullName)
+      return
+    end
+  end
+  table.insert(__CSVariablesRegister, {alias, fullName, getter, setter})  
+
 end
 
 -- Inject getter and setter to the proxy object for a specified prop name
@@ -207,12 +247,15 @@ function RegisterCommands()
     
     -- Register aliases and commands
     for k,v in pairs(__CSCommandsRegister) do        
-	local domains = SplitString(v[2], ".")
+        local domains = SplitString(v[2], ".")
 	
         local tprev, tlast, lastName = PrepareCommandPath(domains)        
         InjectMethod(tprev, lastName, v[3]) 
 	
-	local tprev, tlast, lastName = PrepareCommandPath(v[1])        
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])        
         InjectMethod(tprev, lastName, v[3]) 
     end        
+end
+
+function RegisterVariables()
 end

@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using Alg;
 using Gamelib.DataStructures;
+using GameLib.Log;
 using MoonSharp.Interpreter;
 using MoonSharp.UnityWrapper;
 using UnityEngine;
@@ -23,7 +24,6 @@ namespace Qonsole
                 LogType = logType;
             }
         }
-
 
         private const int CircularBufferCapacity = 4096;
         private CircularBuffer<LogEntry> _items = new CircularBuffer<LogEntry>(CircularBufferCapacity);
@@ -95,32 +95,28 @@ namespace Qonsole
             Script.DoString("RegisterCommands()"); // Distribute names to namespaces in Lua, check for path conflicts 
 
 
-            Debug.Log($"Registered {ConsoleSystem.Methods.Count} console commands");
+            LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Methods.Count} console commands");
+            if (LogChecker.Verbose())
+                Script.DoString("PrintTable(__CSCommandsRegister, 1, 4)");
         }
 
         private void RegisterLuaVariables()
         {
-            StringBuilder sb = new StringBuilder(1024);
-            int registeredCounter = 0;
-
-            
-            foreach (var variableInfo in ConsoleSystem.Variables)
+            foreach (var consoleVarInfo in ConsoleSystem.Variables)
             {
-                try
-                {
-                    Script.Globals[variableInfo.AliasName] = variableInfo.Property;
-                    sb.Append(variableInfo.AliasName);
-                    sb.Append(" ");
-                    registeredCounter++;
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"Exception registering {variableInfo.AliasName}: " + e.Message);
-                }
+                var regTable = new Table(Script);
+                regTable["alias"] = consoleVarInfo.AliasName;
+                regTable["fullName"] = consoleVarInfo.FullName;
+                regTable["getter"] = consoleVarInfo.Property.GetGetMethod();
+                regTable["setter"] = consoleVarInfo.Property.GetSetMethod();
+                Script.Globals["__tmpRegItem"] = regTable; // Put method's parameters (alias,fullName,getter, setter) needed for AddToCommandRegister function on Lua side
+                Script.DoString("AddToVariableRegister(__tmpRegItem.alias, __tmpRegItem.fullName, __tmpRegItem.getter,__tmpRegItem.setter)");
             }
-            Debug.Log($"Registered {registeredCounter} console variables");
-            if(registeredCounter > 0)
-                Debug.Log(sb.ToString());
+
+            LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Variables.Count} console variables");
+            if(LogChecker.Verbose())
+                Script.DoString("PrintTable(__CSVariablesRegister, 1, 4)");
+
         }
 
         public void ExecuteString(string luaCode)
