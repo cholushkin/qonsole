@@ -94,7 +94,6 @@ namespace Qonsole
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
             Script.DoString("RegisterCommands()"); // Distribute names to namespaces in Lua, check for path conflicts 
 
-
             LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Methods.Count} console commands");
             if (LogChecker.Verbose())
                 Script.DoString("PrintTable(__CSCommandsRegister, 1, 4)");
@@ -113,10 +112,12 @@ namespace Qonsole
                 Script.DoString("AddToVariableRegister(__tmpRegItem.alias, __tmpRegItem.fullName, __tmpRegItem.getter,__tmpRegItem.setter)");
             }
 
+            Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
+            Script.DoString("RegisterVariables()"); // Distribute names to namespaces in Lua, check for path conflicts 
+
             LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Variables.Count} console variables");
             if(LogChecker.Verbose())
                 Script.DoString("PrintTable(__CSVariablesRegister, 1, 4)");
-
         }
 
         public void ExecuteString(string luaCode)

@@ -2,10 +2,12 @@
 
 __CSCommandsRegister = 
 {   
+--format: {alias, fullName, func}
 }
 
 __CSVariablesRegister = 
 {
+-- format: {alias, fullName, getter, setter}
 }
 
 
@@ -153,7 +155,7 @@ function AddToVariableRegister(alias, fullName, getter, setter)
   
   -- Check for existing in __CSVariablesRegister alias
   for k,v in pairs(__CSVariablesRegister) do
-    if(v[1] == alias) then
+    if v[1] == alias then
       print("Error: Variable with alias "..alias.." already exists. Skipping registration for variable "..fullName)
       return
     end
@@ -161,7 +163,7 @@ function AddToVariableRegister(alias, fullName, getter, setter)
   
   -- Check for existing full path in __CSVariablesRegister
   for k,v in pairs(__CSVariablesRegister) do
-    if(v[2] == fullName) then
+    if v[2] == fullName then
       print("Error: Variable with fullName "..fullName.." already exists. Skipping registration for variable "..fullName)
       return
     end
@@ -172,26 +174,37 @@ end
 
 -- Inject getter and setter to the proxy object for a specified prop name
 function InjectGetter(targetObject, propName, getterFunction)
-    print('injecting getter')
     local propGetter = function(t, key)
-        if(key == propName) then
+        if key == propName then
             return getterFunction()
         else
             print('there is no such prop as '..key)
         end
     end
+    
+    if type(targetObject[propName]) ~= "table" then
+        print("Error: path conflict")
+        return
+    end
+    
+    if next(targetObject[propName]) ~= nil then -- the last table in path is tmp table and should be empty. 
+        print("Error: path conflict")
+        return   
+    end
+    
+    targetObject[propName] = nil
     local meta = getmetatable(targetObject)
     if meta ~= nil then
-        print("reusing prev meta table")
+        --print("reusing prev meta table")
         meta.__index = propGetter
     else
-        print("set new metatable")
+        --print("set new metatable")
         setmetatable(targetObject, {__index = propGetter} )
     end
 end
 
-function InjectSetter(targetObject, propName, setterFunction)
-    print('injecting setter')
+-- Note: every exposed variable must have getter but setter is optional and will be added to existing metatable
+function InjectSetter(targetObject, propName, setterFunction)    
     local propSetter = function(t, key, value)
                 if(key == propName) then
                     setterFunction(value)
@@ -210,11 +223,11 @@ function InjectSetter(targetObject, propName, setterFunction)
 end
 
 function InjectMethod(parentTable, methodName, func)
-    if( type(parentTable[methodName]) ~= "table" ) then
+    if type(parentTable[methodName]) ~= "table" then
         print("Error: path conflict")
         return
     end
-    if next(parentTable[methodName]) ~= nil then
+    if next(parentTable[methodName]) ~= nil then -- the last table in path is tmp table and should be empty. it will be replaced by methodName key
         print("Error: path conflict")
         return   
     end
@@ -226,8 +239,7 @@ function CheckFreeName(name)
     return _G[name] == nil
 end
 
-function RegisterCommands()
-    
+function RegisterCommands()    
     -- Before the registration of global commands check if there any tables or variables
     -- in _G which starts from any of Registered commands root table or alias. This is needed to 
     -- prevent writing in existing global tables or variables
@@ -258,4 +270,29 @@ function RegisterCommands()
 end
 
 function RegisterVariables()
+    for k,v in pairs(__CSVariablesRegister) do
+        -- Fullnamed var
+        local domains = SplitString(v[2], ".")
+        if CheckFreeName(domains[1]) == false then
+            print("Error: global name is in use: '"..domains[1].."'. Your variable name also starts from it - "..v[2] )            
+        end
+
+        -- Alias var        
+        if CheckFreeName(v[1]) == false then
+            print("Error: global name is in use: '"..v[1].."'. Your variable alias also has such name")            
+        end
+    end
+    
+    for k,v in pairs(__CSVariablesRegister) do        
+        local domains = SplitString(v[2], ".")
+	
+        local tprev, tlast, lastName = PrepareCommandPath(domains)      
+      	InjectGetter(tprev, lastName, v[3])
+	InjectSetter(tprev, lastName, v[4])
+	
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])
+	InjectGetter(tprev, lastName, v[3])
+	InjectSetter(tprev, lastName, v[4])
+    end        
 end
+
