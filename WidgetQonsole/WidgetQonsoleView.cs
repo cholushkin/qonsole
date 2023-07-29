@@ -34,6 +34,7 @@ public class WidgetQonsoleView : MonoBehaviour
     public string ConsoleName = "DefaultConsole";
     private bool m_IsConsoleOpened;
     private bool m_ColoredOutput;
+    private bool m_MessageSeparator;
     private bool m_AutoScroll;
     private bool m_FilterBar;
     private bool m_TimeStamps;
@@ -130,6 +131,11 @@ public class WidgetQonsoleView : MonoBehaviour
                 ImGui.Checkbox("Colored Output", ref m_ColoredOutput);
                 ImGui.SameLine();
                 HelpMaker("Enable colored command output");
+
+                // Message separator line
+                ImGui.Checkbox("Message Separator", ref m_MessageSeparator);
+                ImGui.SameLine();
+                HelpMaker("Enable message separator");
 
                 // Auto Scroll
                 ImGui.Checkbox("Auto Scroll", ref m_AutoScroll);
@@ -236,6 +242,7 @@ public class WidgetQonsoleView : MonoBehaviour
         m_AutoScroll = true;
         m_ScrollToBottom = false;
         m_ColoredOutput = true;
+        m_MessageSeparator = true;
         m_FilterBar = true;
         m_TimeStamps = true;
 
@@ -293,6 +300,8 @@ public class WidgetQonsoleView : MonoBehaviour
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, LogTypeToColor(item.LogType));
                     ImGui.TextUnformatted(item.Message);
+                    if(m_MessageSeparator)
+                        ImGui.Separator();
                     //ImGui.SameLine();
                     //ImGUIExtension.HelpMarker("aaaa");
                     ImGui.PopStyleColor();
@@ -301,6 +310,8 @@ public class WidgetQonsoleView : MonoBehaviour
                 {
                     //ImGui.TextUnformatted(item.Get().data());
                     ImGui.TextUnformatted(item.Message);
+                    if (m_MessageSeparator)
+                        ImGui.Separator();
                 }
 
 
