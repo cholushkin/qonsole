@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using MoonSharp.Interpreter;
 using UnityEngine;
 
@@ -7,20 +8,33 @@ namespace Qonsole
 {
     public class ConsoleCommandsConsoleRoutines
     {
-        [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands"), UnityEngine.Scripting.Preserve]
-		public static void PrintAllCommands()
+        [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands", "print only commands specified by wildcard. Works with full names of commands"), UnityEngine.Scripting.Preserve]
+		public static void PrintAllCommands(string wildcard = null)
         {
             StringBuilder stringBuilder = new StringBuilder(256);
-            stringBuilder.Append($"Available commands: {ConsoleSystem.Methods.Count}");
+            int counter = 0;
+
+            stringBuilder.Append($"Format: FullName<AliasName>(Parameters) : Description\n");
 
             for (int i = 0; i < ConsoleSystem.Methods.Count; i++)
             {
+                if (!string.IsNullOrEmpty(wildcard))
+                {
+                    var regExpression = _wildCardToRegular(wildcard);
+                    var pass = Regex.IsMatch(ConsoleSystem.Methods[i].FullName, regExpression);
+                    if (!pass)
+                        continue;
+                }
+
                 stringBuilder.Append("\n  - ").Append(ConsoleSystem.Methods[i].Signature);
                 if(!string.IsNullOrEmpty(ConsoleSystem.Methods[i].CmdDescription))
                     stringBuilder.Append(" : ").Append(ConsoleSystem.Methods[i].CmdDescription);
                 if (!ConsoleSystem.Methods[i].IsValid())
                     stringBuilder.Append("[Invalid]");
+                ++counter;
             }
+
+            stringBuilder.Append($"\n\nCommands amount: {counter}");
 
             Debug.Log(stringBuilder.ToString());
         }
@@ -114,10 +128,13 @@ namespace Qonsole
             WidgetQonsoleController.Instance.Clear();
         }
 
+        private static string _wildCardToRegular(string wildcard)
+        {
+            return "^" + Regex.Escape(wildcard).Replace("\\*", ".*") + "$";
+        }
 
 
         // todo:
-        // console.cmd.help - Print help for a specific command
         // console.dumphelp - Print all cmds and vars help to the text file
 
     }

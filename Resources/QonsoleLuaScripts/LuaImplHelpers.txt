@@ -211,10 +211,10 @@ local function InjectSetter(targetObject, propName, setterFunction)
     end
     local meta = getmetatable(targetObject)
     if meta ~= nil then
-        print("reusing prev meta table")
+        --print("reusing prev meta table")
         meta.__newindex = propSetter
     else
-        print("set new metatable")
+        --print("set new metatable")
         setmetatable(targetObject, {__newindex = propSetter} )
     end
 end

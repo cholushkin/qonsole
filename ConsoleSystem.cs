@@ -246,33 +246,6 @@ namespace Qonsole
             // Create the command
             var methodSignature = CreateMethodSignature(aliasName, commandFullName, parameters);
             var parameterDescriptions = CreateParameterDescriptions(parameters, parameterDescription);
-            //StringBuilder methodSignature = new StringBuilder(256);
-            //string[] parameterSignatures = new string[parameterTypes.Length];
-
-            //methodSignature.Append(command);
-
-            //if (parameterTypes.Length > 0)
-            //{
-            //    methodSignature.Append(" ");
-
-            //    for (int i = 0; i < parameterTypes.Length; i++)
-            //    {
-            //        int parameterSignatureStartIndex = methodSignature.Length;
-
-            //        var defaultValue = parameters[i].DefaultValue.ToString();
-            //        methodSignature.Append("[").Append(GetTypeReadableName(parameterTypes[i])).Append(" ").Append((parameterDescription != null && i < parameterDescription.Length && !string.IsNullOrEmpty(parameterDescription[i])) ? parameterDescription[i] : parameters[i].Name).Append("]");
-            //        //methodSignature.Append($"[{GetTypeReadableName(parameterTypes[i])} {}]")
-
-
-            //        if (i < parameterTypes.Length - 1)
-            //            methodSignature.Append(" ");
-
-            //        parameterSignatures[i] = methodSignature.ToString(parameterSignatureStartIndex, methodSignature.Length - parameterSignatureStartIndex);
-            //    }
-            //}
-
-            //if (!string.IsNullOrEmpty(description))
-            //    methodSignature.Append(": ").Append(description);
 
             var methodInfo = new ConsoleMethodInfo(method, parameterTypes, instance, commandFullName, aliasName, methodSignature, description, parameterDescriptions);
             Methods.Add(methodInfo);
@@ -325,7 +298,7 @@ namespace Qonsole
             var index = 0;
             foreach (var parameterInfo in parameters)
             {
-                var parameterName = parameterInfo.HasDefaultValue ? $"{parameterInfo.Name} = {parameterInfo.DefaultValue}" : $"{parameterInfo.Name}";
+                var parameterName = parameterInfo.HasDefaultValue ? $"{parameterInfo.Name} = {parameterInfo.DefaultValue ?? "null"}" : $"{parameterInfo.Name}";
                 sb.Append($"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterName}");
                 if (index != parameters.Length-1)
                     sb.Append(", ");

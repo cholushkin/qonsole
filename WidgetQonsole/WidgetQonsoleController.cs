@@ -56,6 +56,7 @@ namespace Qonsole
             RegisterParameterTypes();
             AddFunctionsToRegistryTable();
             AddVariablesToRegistryTable();
+            RegisterCommandsAndVariable();
 
             if (RunAutoexec)
                 Script.DoFile("Autoexec");
