@@ -25,6 +25,8 @@ namespace Qonsole
             }
         }
 
+        public bool RunAutoexec;
+
         private const int CircularBufferCapacity = 4096;
         private CircularBuffer<LogEntry> _items = new CircularBuffer<LogEntry>(CircularBufferCapacity);
         public WidgetQonsoleView View;
@@ -43,7 +45,7 @@ namespace Qonsole
 
             // Redefine print to print using Unity Debug.Log
             Script.DefaultOptions.DebugPrint = s => Debug.Log(s);
-            
+
             Script = new Script();
             Script.DoFile("QonsoleLuaScripts/LuaImplHelpers");
 
@@ -52,10 +54,11 @@ namespace Qonsole
 
             RegisterLuaWrapperTypes();
             RegisterParameterTypes();
-            RegisterLuaFunctions();
-            RegisterLuaVariables();
+            AddFunctionsToRegistryTable();
+            AddVariablesToRegistryTable();
 
-            Script.DoFile("Autoexec");
+            if (RunAutoexec)
+                Script.DoFile("Autoexec");
         }
 
         private void RegisterLuaWrapperTypes()
@@ -72,14 +75,18 @@ namespace Qonsole
                     if (!UserData.IsTypeRegistered(parType) && parType.IsEnum)
                     {
                         UserData.RegisterType(parType);
-                        // todo: check availability of the name
+                        if (Script.Globals.Get(parType.Name).Type != DataType.Nil)
+                        {
+                            Debug.LogError($"Can't register lua type '{parType.Name}'. The name already exists globally");
+                            break;
+                        }
                         Script.Globals[parType.Name] = parType;
                     }
                 }
             }
         }
 
-        private void RegisterLuaFunctions()
+        private void AddFunctionsToRegistryTable()
         {
             foreach (var consoleMethodInfo in ConsoleSystem.Methods)
             {
@@ -88,18 +95,17 @@ namespace Qonsole
                 regTable["fullName"] = consoleMethodInfo.FullName;
                 regTable["func"] = consoleMethodInfo.Method;
                 Script.Globals["__tmpRegItem"] = regTable; // Put method's parameters (alias,fullName,CS static method) needed for AddToCommandRegister function on Lua side
-                Script.DoString("AddToCommandRegister(__tmpRegItem.alias, __tmpRegItem.fullName, __tmpRegItem.func)"); 
+                Script.DoString("AddToCommandRegister(__tmpRegItem.alias, __tmpRegItem.fullName, __tmpRegItem.func)");
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-            Script.DoString("RegisterCommands()"); // Distribute names to namespaces in Lua, check for path conflicts 
 
             LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Methods.Count} console commands");
             if (LogChecker.Verbose())
                 Script.DoString("PrintTable(__CSCommandsRegister, 1, 4)");
         }
 
-        private void RegisterLuaVariables()
+        private void AddVariablesToRegistryTable()
         {
             foreach (var consoleVarInfo in ConsoleSystem.Variables)
             {
@@ -113,11 +119,15 @@ namespace Qonsole
             }
 
             Script.DoString("__tmpRegItem = nil"); // Keep global namespace clean
-            Script.DoString("RegisterVariables()"); // Distribute names to namespaces in Lua, check for path conflicts 
 
             LogChecker.Print(LogChecker.Level.Normal, $"Registered {ConsoleSystem.Variables.Count} console variables");
-            if(LogChecker.Verbose())
+            if (LogChecker.Verbose())
                 Script.DoString("PrintTable(__CSVariablesRegister, 1, 4)");
+        }
+
+        private void RegisterCommandsAndVariable()
+        {
+            Script.DoString("Register()");
         }
 
         public void ExecuteString(string luaCode)

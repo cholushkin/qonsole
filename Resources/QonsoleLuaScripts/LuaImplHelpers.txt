@@ -1,5 +1,4 @@
 -- Note: all commands and variables must be converted to lower case and trimmed before passed here
-
 __CSCommandsRegister = 
 {   
 --format: {alias, fullName, func}
@@ -9,8 +8,6 @@ __CSVariablesRegister =
 {
 -- format: {alias, fullName, getter, setter}
 }
-
-
 
 local function IsEmpty(s)
   return s == nil or s == ''
@@ -26,7 +23,7 @@ function PrintTable(t, nestLev, maxNest)
 
   local curIdent = ""
   for i = 1, nestLev-1  do
-      curIdent = curIdent..".."
+    curIdent = curIdent..".."
   end
   
   if nestLev == maxNest+1 then    
@@ -68,7 +65,7 @@ function SplitString (inputstr, sep)
         return t
 end
 
-function PrepareCommandPath(path)
+local function PrepareCommandPath(path)
   local domains
   if type(path) == "table" then
     domains = path
@@ -173,7 +170,7 @@ function AddToVariableRegister(alias, fullName, getter, setter)
 end
 
 -- Inject getter and setter to the proxy object for a specified prop name
-function InjectGetter(targetObject, propName, getterFunction)
+local function InjectGetter(targetObject, propName, getterFunction)
     local propGetter = function(t, key)
         if key == propName then
             return getterFunction()
@@ -204,7 +201,7 @@ function InjectGetter(targetObject, propName, getterFunction)
 end
 
 -- Note: every exposed variable must have getter but setter is optional and will be added to existing metatable
-function InjectSetter(targetObject, propName, setterFunction)    
+local function InjectSetter(targetObject, propName, setterFunction)    
     local propSetter = function(t, key, value)
                 if(key == propName) then
                     setterFunction(value)
@@ -222,7 +219,7 @@ function InjectSetter(targetObject, propName, setterFunction)
     end
 end
 
-function InjectMethod(parentTable, methodName, func)
+local function InjectMethod(parentTable, methodName, func)
     if type(parentTable[methodName]) ~= "table" then
         print("Error: path conflict")
         return
@@ -235,64 +232,72 @@ function InjectMethod(parentTable, methodName, func)
     parentTable[methodName] = func
 end
 
-function CheckFreeName(name)
+local function CheckFreeName(name)
     return _G[name] == nil
 end
 
-function RegisterCommands()    
-    -- Before the registration of global commands check if there any tables or variables
-    -- in _G which starts from any of Registered commands root table or alias. This is needed to 
-    -- prevent writing in existing global tables or variables
 
+-- Before the registration of global commands and variables check if there any tables or variables
+-- in _G which has name same as first part of any of Registered cmd/vars. This is needed to 
+-- prevent writing in existing global tables or variables of lua state
+local function CheckNamespaces()
     for k,v in pairs(__CSCommandsRegister) do
-        -- Fullnamed command
+        -- Command full name
         local domains = SplitString(v[2], ".")
         if CheckFreeName(domains[1]) == false then
             print("Error: global name is in use: '"..domains[1].."'. Your command name also starts from it - "..v[2] )            
         end
 
-        -- Alias command        
+        -- Alias command 
         if CheckFreeName(v[1]) == false then
-            print("Error: global name is in use: '"..v[1].."'. Your alias also has such name")            
+            print("Error: global name is in use: '"..v[1].."'. Your command alias also has such name")            
         end
     end
     
-    -- Register aliases and commands
-    for k,v in pairs(__CSCommandsRegister) do        
-        local domains = SplitString(v[2], ".")
-	
-        local tprev, tlast, lastName = PrepareCommandPath(domains)        
-        InjectMethod(tprev, lastName, v[3]) 
-	
-        local tprev, tlast, lastName = PrepareCommandPath(v[1])        
-        InjectMethod(tprev, lastName, v[3]) 
-    end        
-end
-
-function RegisterVariables()
     for k,v in pairs(__CSVariablesRegister) do
-        -- Fullnamed var
+        -- Variable full name
         local domains = SplitString(v[2], ".")
         if CheckFreeName(domains[1]) == false then
             print("Error: global name is in use: '"..domains[1].."'. Your variable name also starts from it - "..v[2] )            
         end
 
-        -- Alias var        
+        -- Alias variable
         if CheckFreeName(v[1]) == false then
             print("Error: global name is in use: '"..v[1].."'. Your variable alias also has such name")            
         end
     end
-    
-    for k,v in pairs(__CSVariablesRegister) do        
+end
+
+local function RegisterCommands()    
+    -- Register aliases and commands
+    for k,v in pairs(__CSCommandsRegister) do        
         local domains = SplitString(v[2], ".")
-	
-        local tprev, tlast, lastName = PrepareCommandPath(domains)      
-      	InjectGetter(tprev, lastName, v[3])
-	InjectSetter(tprev, lastName, v[4])
-	
-        local tprev, tlast, lastName = PrepareCommandPath(v[1])
-	InjectGetter(tprev, lastName, v[3])
-	InjectSetter(tprev, lastName, v[4])
+    
+        local tprev, tlast, lastName = PrepareCommandPath(domains)        
+        InjectMethod(tprev, lastName, v[3]) 
+    
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])        
+        InjectMethod(tprev, lastName, v[3]) 
     end        
 end
 
+local function RegisterVariables()
+    for k,v in pairs(__CSVariablesRegister) do        
+        local domains = SplitString(v[2], ".")
+    
+        local tprev, tlast, lastName = PrepareCommandPath(domains)      
+        InjectGetter(tprev, lastName, v[3])
+    InjectSetter(tprev, lastName, v[4])
+    
+    local tprev, tlast, lastName = PrepareCommandPath(v[1])
+    InjectGetter(tprev, lastName, v[3])
+    InjectSetter(tprev, lastName, v[4])
+    end        
+end
+
+
+function Register()
+  CheckNamespaces()
+  RegisterCommands()
+  RegisterVariables()
+end
