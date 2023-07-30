@@ -220,7 +220,7 @@ local function InjectSetter(targetObject, propName, setterFunction)
         if setter ~= nil then
             return setter(value)
         else
-            print('There is no setter for '..key)
+            print('Error: there is no setter for '..key)
         end
     end    
     

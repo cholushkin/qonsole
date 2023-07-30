@@ -115,6 +115,7 @@ namespace Qonsole
                 regTable["fullName"] = consoleVarInfo.FullName;
                 regTable["getter"] = consoleVarInfo.Property.GetGetMethod();
                 regTable["setter"] = consoleVarInfo.Property.GetSetMethod();
+
                 Script.Globals["__tmpRegItem"] = regTable; // Put method's parameters (alias,fullName,getter, setter) needed for AddToCommandRegister function on Lua side
                 Script.DoString("AddToVariableRegister(__tmpRegItem.alias, __tmpRegItem.fullName, __tmpRegItem.getter,__tmpRegItem.setter)");
             }
