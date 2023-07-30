@@ -66,35 +66,36 @@ function SplitString (inputstr, sep)
 end
 
 local function PrepareCommandPath(path)
-  local domains
-  if type(path) == "table" then
-    domains = path
-  else
-    assert(type(path) == "string")
-    domains = SplitString(path, ".")
-  end
-  
-  local prevTable = _G
-  local curRootTable = _G
-  local lastTableName = "_G"
-  for i = 1, #domains do  
-    local d = domains[i]
-    if curRootTable[d] == nil then
-      curRootTable[d] = {}    
+    local domains
+    if type(path) == "table" then
+        domains = path
     else
-      -- reusing existing table 
-      if type(curRootTable[d]) ~= "table" then
-        print("Error: path conflicts with variable "..d.." of type "..type(curRootTable[d]))
-        PrintTable(domains, 1, 4)
-        return
-      end
+        assert(type(path) == "string", "Invalid argument: 'path' must be a string or a table.")
+        domains = SplitString(path, ".")
     end
-    prevTable = curRootTable
-    lastTableName = d
-    curRootTable = curRootTable[d]    
-  end
-  return prevTable, curRootTable, lastTableName
+
+    local prevTable = _G
+    local curRootTable = _G
+    local lastTableName = "_G"
+    for i = 1, #domains do
+        local d = domains[i]
+        if rawget(curRootTable, d) == nil then
+            rawset(curRootTable, d, {})
+        else
+            -- reusing existing table
+            if type(rawget(curRootTable, d)) ~= "table" then
+                print("Error: path conflicts with variable " .. d .. " of type " .. type(rawget(curRootTable, d)))
+                PrintTable(domains, 1, 4)
+                return
+            end
+        end
+        prevTable = curRootTable
+        lastTableName = d
+        curRootTable = rawget(curRootTable, d)
+    end
+    return prevTable, curRootTable, lastTableName
 end
+
 
 function AddToCommandRegister(alias, fullName, func)
   if __CSCommandsRegister == nil then
@@ -169,54 +170,81 @@ function AddToVariableRegister(alias, fullName, getter, setter)
 
 end
 
--- Inject getter and setter to the proxy object for a specified prop name
+-- notes: targetObject table might have multiple variables
+-- metatable contains data with mapping (keyname,getter) and __indexfunction
 local function InjectGetter(targetObject, propName, getterFunction)
-    local propGetter = function(t, key)
-        if key == propName then
-            return getterFunction()
+    local propGetter = function(t, key)        
+        local meta = getmetatable(t)
+        local getter = meta.getterMap[key]
+        assert(meta ~= nil)        
+            
+        if getter ~= nil then
+            return getter()
         else
-            print('there is no such prop as '..key)
+            print('There is no getter for '..key)
         end
     end
     
+    -- Check the path
     if type(targetObject[propName]) ~= "table" then
         print("Error: path conflict")
         return
     end
-    
-    if next(targetObject[propName]) ~= nil then -- the last table in path is tmp table and should be empty. 
+    if next(targetObject[propName]) ~= nil then -- The last table in the path is a temp table and should be empty. 
         print("Error: path conflict")
         return   
     end
-    
     targetObject[propName] = nil
+    
     local meta = getmetatable(targetObject)
     if meta ~= nil then
-        --print("reusing prev meta table")
+        -- just add new pair (propName,getterFunction) to getterMap of the existing metatable        
+        meta.getterMap[propName] = getterFunction        
+    else -- else branch: first time adding a key to targetObject, no meta table
+        -- Setup metatable
+        local meta = {}
         meta.__index = propGetter
-    else
-        --print("set new metatable")
-        setmetatable(targetObject, {__index = propGetter} )
-    end
+        meta.getterMap = {}
+        meta.getterMap[propName] = getterFunction        
+        setmetatable(targetObject, meta)
+    end  
 end
 
 -- Note: every exposed variable must have getter but setter is optional and will be added to existing metatable
 local function InjectSetter(targetObject, propName, setterFunction)    
     local propSetter = function(t, key, value)
-                if(key == propName) then
-                    setterFunction(value)
-                else
-                    print('there is no such prop as '..key)
-                end
-    end
+        local meta = getmetatable(t)
+        local setter = meta.setterMap[key]
+        assert(meta ~= nil)        
+            
+        if setter ~= nil then
+            return setter(value)
+        else
+            print('There is no setter for '..key)
+        end
+    end    
+    
+    -- Check the path
+    if type(targetObject) ~= "table" then
+        print("Error: path conflict")
+        return
+    end    
+            
     local meta = getmetatable(targetObject)
-    if meta ~= nil then
-        --print("reusing prev meta table")
+    if meta == nil then
+        print("Error: metable is nil during injecting setter")
+        return
+    end    
+    
+    if meta.setterMap ~= nil then 
+        -- just add new pair (propName,getterFunction) to setterMap of the existing metatable        
+        meta.setterMap[propName] = setterFunction        
+    else -- else branch: first time adding a key to targetObject, no meta table
+        -- Add __newindex and setterMap to existing metatable        
         meta.__newindex = propSetter
-    else
-        --print("set new metatable")
-        setmetatable(targetObject, {__newindex = propSetter} )
-    end
+        meta.setterMap = {}
+        meta.setterMap[propName] = setterFunction                
+    end  
 end
 
 local function InjectMethod(parentTable, methodName, func)
@@ -284,14 +312,14 @@ end
 local function RegisterVariables()
     for k,v in pairs(__CSVariablesRegister) do        
         local domains = SplitString(v[2], ".")
-    
+            
         local tprev, tlast, lastName = PrepareCommandPath(domains)      
         InjectGetter(tprev, lastName, v[3])
-    InjectSetter(tprev, lastName, v[4])
+        InjectSetter(tprev, lastName, v[4])
     
-    local tprev, tlast, lastName = PrepareCommandPath(v[1])
-    InjectGetter(tprev, lastName, v[3])
-    InjectSetter(tprev, lastName, v[4])
+        local tprev, tlast, lastName = PrepareCommandPath(v[1])
+        InjectGetter(tprev, lastName, v[3])
+        InjectSetter(tprev, lastName, v[4])
     end        
 end
 

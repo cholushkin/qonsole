@@ -8,10 +8,10 @@ namespace Qonsole
 {
     public class ConsoleCommandsConsoleRoutines
     {
-        [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands", "print only commands specified by wildcard. Works with full names of commands"), UnityEngine.Scripting.Preserve]
+        [ConsoleMethod("console.cmd.list", "help", "Print the list of all available commands", "Specify commands to print by a wildcard. Works with full names of commands"), UnityEngine.Scripting.Preserve]
 		public static void PrintAllCommands(string wildcard = null)
         {
-            StringBuilder stringBuilder = new StringBuilder(256);
+            StringBuilder stringBuilder = new StringBuilder(4096);
             int counter = 0;
 
             stringBuilder.Append($"Format: FullName<AliasName>(Parameters) : Description\n");
@@ -88,27 +88,27 @@ namespace Qonsole
             }
         }
 
-        [ConsoleMethod("console.var.list", "lsv", "Print the list of all available variables"), UnityEngine.Scripting.Preserve]
-        public static void PrintAllVariables()
+        [ConsoleMethod("console.var.list", "lsv", "Print the list of all available variables", "Specify variables to print by a wildcard. Works with full names of variables"), UnityEngine.Scripting.Preserve]
+        public static void PrintAllVariables(string wildcard = null)
         {
-            int length = 25;
-            for (int i = 0; i < ConsoleSystem.Variables.Count; i++)
-            {
-                //if (ConsoleSystem.Variables[i].IsValid())
-                    length += ConsoleSystem.Variables[i].Signature.Length + 7;
-            }
-
-            StringBuilder stringBuilder = new StringBuilder(length);
-            stringBuilder.Append($"Available variables: {ConsoleSystem.Variables.Count}");
+            StringBuilder stringBuilder = new StringBuilder(4096);
+            int counter = 0;
 
             for (int i = 0; i < ConsoleSystem.Variables.Count; i++)
             {
-                //if (ConsoleSystem.Variables[i].IsValid())
+                if (!string.IsNullOrEmpty(wildcard))
                 {
-                    stringBuilder.Append("\n  - ").Append(ConsoleSystem.Variables[i].Signature);
-                    //stringBuilder.Append($" = {ConsoleSystem.Variables[i].Field.GetValue(null)}"); // Print default value
+                    var regExpression = _wildCardToRegular(wildcard);
+                    var pass = Regex.IsMatch(ConsoleSystem.Variables[i].FullName, regExpression);
+                    if (!pass)
+                        continue;
                 }
+                stringBuilder.Append("  - ").Append(ConsoleSystem.Variables[i].Signature).AppendLine();
+                ++counter;
             }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"Variables amount: {counter}");
 
             Debug.Log(stringBuilder.ToString());
         }

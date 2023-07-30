@@ -137,7 +137,11 @@ namespace Qonsole
             {
                 if (string.IsNullOrEmpty(luaCode))
                     return;
-                Debug.Log($">> {luaCode}");
+                if( CountLines(luaCode) > 1)
+                    Debug.Log($">>\n{luaCode}");
+                else
+                    Debug.Log($">>{luaCode}");
+
                 var dVal = Script.DoString(luaCode);
             }
             catch (Exception e)
@@ -154,6 +158,22 @@ namespace Qonsole
         void ReceivedLog(string logString, string stackTrace, LogType logType)
         {
             _items.Enqueue(new LogEntry(logString, stackTrace, logType));
+        }
+
+        private static int CountLines(string inputString)
+        {
+            if (string.IsNullOrEmpty(inputString))
+                return 0;
+
+            int lineCount = 1; // If the inputString is not empty, there is at least one line.
+
+            for (int i = 0; i < inputString.Length; i++)
+            {
+                if (inputString[i] == '\n')
+                    lineCount++;
+            }
+
+            return lineCount;
         }
     }
 }

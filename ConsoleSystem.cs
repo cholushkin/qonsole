@@ -272,7 +272,7 @@ namespace Qonsole
             }
 
             // Create the command
-            string variableSignature = $"[{GetTypeReadableName(prop.PropertyType)}] {varFullName} - {description}";
+            string variableSignature = CreatePropSignature(aliasName, varFullName, description, prop);
 
             Variables.Add(new ConsoleVariableInfo(prop, instance, varFullName, aliasName, variableSignature, description));
         }
@@ -284,7 +284,7 @@ namespace Qonsole
             foreach (var parameterInfo in parameters)
             {
                 var description = index < parameterDescription.Length ? parameterDescription[index] : "No description;";
-                var parameterName = parameterInfo.HasDefaultValue ? $"{parameterInfo.Name} = {parameterInfo.DefaultValue}" : $"{parameterInfo.Name}";
+                var parameterName = $"{parameterInfo.Name}";
                 res[index] = $"{GetTypeReadableName(parameterInfo.ParameterType)} {parameterName} - {description}";
                 ++index;
             }
@@ -307,6 +307,27 @@ namespace Qonsole
 
             return $"{commandFullName}<{aliasName}>({sb.ToString()})";
         }
+
+
+        private static string CreatePropSignature(string aliasName, string fullName, string description, PropertyInfo propInfo)
+        {
+            StringBuilder sb = new StringBuilder(256);
+            
+            sb.Append(fullName);
+            sb.Append($"<{aliasName}> ");
+            sb.Append(GetTypeReadableName(propInfo.PropertyType));
+            sb.Append($" = {(propInfo.GetValue(null) ?? "null")}");
+
+
+            if (propInfo.GetSetMethod() == null)
+                sb.Append(" [readonly]");
+            sb.Append(" - ");
+            sb.Append(description);
+
+            return sb.ToString();
+        }
+
+
 
         public static void SortMethodsTable()
         {
