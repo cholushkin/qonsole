@@ -30,7 +30,7 @@ public class WidgetQonsoleView : MonoBehaviour
     public ColorPalette TextColorPalette;
 
     private const float inputBufferSize = 1024;
-    private float m_WindowAlpha = 1f;
+    public float m_WindowAlpha = 1f;
     public string ConsoleName = "DefaultConsole";
     private bool m_IsConsoleOpened;
     private bool m_ColoredOutput;
@@ -45,11 +45,19 @@ public class WidgetQonsoleView : MonoBehaviour
 
 
     private CircularBuffer<WidgetQonsoleController.LogEntry> _items;
+    private CircularBuffer<string> _historyBuffer;
+    private int _historyBufferPointer;
 
 
+    // todo: rename
     public void SetItems(CircularBuffer<WidgetQonsoleController.LogEntry> items)
     {
         _items = items;
+    }
+
+    public void SetHistoryBuffer(CircularBuffer<string> historyBuffer)
+    {
+        _historyBuffer = historyBuffer;
     }
 
 
@@ -110,12 +118,22 @@ public class WidgetQonsoleView : MonoBehaviour
         // Console Logs
         LogWindow();
 
-        //// Section off.
+
+        // Section off.
         ImGui.Separator();
 
         // Command-line 
-
         InputBar();
+
+        //HistoryBox();
+
+
+        
+
+
+
+        Popup();
+
 
         ImGui.End();
     }
@@ -269,11 +287,14 @@ public class WidgetQonsoleView : MonoBehaviour
         ImGui.Separator();
     }
 
+    private Vector2 _logWindowSize;
     void LogWindow()
     {
         float footerHeightToReserve = ImGui.GetStyle().ItemSpacing.y + ImGui.GetFrameHeightWithSpacing();
-        if (ImGui.BeginChild("ScrollRegion##", new Vector2(0, -footerHeightToReserve), false, 0))
+
+        if (ImGui.BeginChild("ScrollRegion##", new Vector2(0, -footerHeightToReserve), false, ImGuiWindowFlags.NoNavFocus))
         {
+            _logWindowSize = ImGui.GetContentRegionAvail();
             // Display colored command output.
             float timestamp_width = ImGui.CalcTextSize("00:00:00:0000").x;    // Timestamp. // todo: move outside and calc 1 time
             int count = 0;                                                                       // Item count.
@@ -349,15 +370,18 @@ public class WidgetQonsoleView : MonoBehaviour
     private string inputBuffer = "";
 
 
+    private Vector2 _inputBarScreenPos;
+    bool reclaimFocus = false;
     void InputBar()
     {
         // Variables.
         //ImGuiInputTextFlags inputTextFlags = ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackCharFilter | ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CallbackAlways;
 
         // Only reclaim after enter key is pressed!
-        bool reclaimFocus = false;
+        
 
         // Input widget. (Width an always fixed width)
+        _inputBarScreenPos = ImGui.GetCursorScreenPos();
         ImGui.PushItemWidth(-128);
         if (ImGui.InputText("Input", ref inputBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue))
         {
@@ -379,6 +403,26 @@ public class WidgetQonsoleView : MonoBehaviour
             inputBuffer = "";
 
         }
+
+
+
+        if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            print("up arrow click in edit box");
+            ImGui.OpenPopup("pppopup");
+        }
+
+        if (ImGui.IsWindowHovered())
+        {
+            if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+            {
+                print("right click in edit box");
+                //ImGui.OpenPopup("popup_history", 0, new Vector2(100,100));
+            }
+
+
+        }
+
         ImGui.PopItemWidth();
 
 
@@ -392,8 +436,90 @@ public class WidgetQonsoleView : MonoBehaviour
         // Auto-focus on window apparition
         ImGui.SetItemDefaultFocus();
         if (reclaimFocus)
-            ImGui.SetKeyboardFocusHere(-1); // Focus on command line after clearing.
+        {
+            ImGui.SetKeyboardFocusHere(); // Focus on command line after clearing.
+            reclaimFocus = false;
+        }
     }
+
+
+
+    bool Popup()
+    {
+
+        const int popupNumLinesMax = 8;
+        int popupNumLines = Math.Min(_historyBuffer.Count, popupNumLinesMax);
+        if (popupNumLines == 0)
+            return false;
+        float lineHeight = ImGui.GetTextLineHeightWithSpacing();
+        var popupSize = new Vector2(Mathf.Max(_logWindowSize.x - 100f, 128f), lineHeight * popupNumLines + 20); // 20 for padding
+
+        // Close popup if the parent window is too small
+        if (popupSize.x + 32 > _logWindowSize.x)
+            return false;
+        if (popupSize.y + 32 > _logWindowSize.y)
+            return false;
+
+
+        ImGui.SetNextWindowPos(_inputBarScreenPos - Vector2.up * (popupSize.y + 20f)); // 20 for offset from inputField
+        ImGui.SetNextWindowSize(popupSize);
+        ImGui.SetNextWindowBgAlpha(0.75f);
+
+        if (ImGui.BeginPopupContextItem($"pppopup"))
+        {
+            ImGui.Indent();
+            var index = 0;
+
+            foreach (var hLine in _historyBuffer)
+            {
+
+                bool t = _historyBuffer.Count - 1 == index;
+
+                if (ImGui.Selectable($"{hLine}##{index}"))
+                {
+                    print("selected " + index);
+                    inputBuffer = hLine;
+                    reclaimFocus = true;
+                }
+
+                if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.Return))
+                {
+                    print("selected " + index);
+                    inputBuffer = hLine;
+                    reclaimFocus = true;
+                    ImGui.CloseCurrentPopup();
+                }
+
+                //if (_historyBuffer.Count - 1 == index)
+                //{
+                //    ImGui.SetKeyboardFocusHere(-1);
+                //}
+
+
+                //if (index == _historyBufferPointer)
+                //{
+                //    //ImGui.Text(hLine);
+                //    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.0f, 0.0f, 1.0f)); // Red text color
+                //    ImGui.Selectable(hLine+index);
+                //    ImGui.PopStyleColor();
+                //}
+                //else
+                //{
+                //    ImGui.Selectable(hLine+index);
+                //}
+
+                ++index;
+            }
+
+           
+
+            ImGui.Unindent();
+            ImGui.EndPopup();
+            return true;
+        }
+        return false;
+    }
+
 
     private Color LogTypeToColor(LogType logType)
     {
