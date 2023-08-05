@@ -28,6 +28,8 @@ public class WidgetQonsoleView : MonoBehaviour
     }
 
     public ColorPalette TextColorPalette;
+    public int HistoryBoxNumLinesMax = 8;
+    public float HistoryBoxAlpha = 0.75f;
 
     private const float inputBufferSize = 1024;
     public float m_WindowAlpha = 1f;
@@ -41,7 +43,7 @@ public class WidgetQonsoleView : MonoBehaviour
     private bool m_ScrollToBottom;
     private bool m_WasPrevFrameTabCompletion;
     ImGuiTextFilter m_TextFilter;    //!< Logging filer
-    
+
 
 
     private CircularBuffer<WidgetQonsoleController.LogEntry> _items;
@@ -118,21 +120,12 @@ public class WidgetQonsoleView : MonoBehaviour
         // Console Logs
         LogWindow();
 
-
         // Section off.
         ImGui.Separator();
 
         // Command-line 
         InputBar();
-
-        //HistoryBox();
-
-
-        
-
-
-
-        Popup();
+        PopupHistorybox();
 
 
         ImGui.End();
@@ -321,7 +314,7 @@ public class WidgetQonsoleView : MonoBehaviour
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, LogTypeToColor(item.LogType));
                     ImGui.TextUnformatted(item.Message);
-                    if(m_MessageSeparator)
+                    if (m_MessageSeparator)
                         ImGui.Separator();
                     //ImGui.SameLine();
                     //ImGUIExtension.HelpMarker("aaaa");
@@ -372,13 +365,14 @@ public class WidgetQonsoleView : MonoBehaviour
 
     private Vector2 _inputBarScreenPos;
     bool reclaimFocus = false;
+    private bool popupFirstFrame = false;
     void InputBar()
     {
         // Variables.
         //ImGuiInputTextFlags inputTextFlags = ImGuiInputTextFlags.CallbackHistory | ImGuiInputTextFlags.CallbackCharFilter | ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CallbackAlways;
 
         // Only reclaim after enter key is pressed!
-        
+
 
         // Input widget. (Width an always fixed width)
         _inputBarScreenPos = ImGui.GetCursorScreenPos();
@@ -401,15 +395,14 @@ public class WidgetQonsoleView : MonoBehaviour
 
             //// Clear command line.
             inputBuffer = "";
-
         }
-
 
 
         if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.UpArrow))
         {
             print("up arrow click in edit box");
-            ImGui.OpenPopup("pppopup");
+            popupFirstFrame = true;
+            ImGui.OpenPopup("HistoryBoxPopup");
         }
 
         if (ImGui.IsWindowHovered())
@@ -443,19 +436,16 @@ public class WidgetQonsoleView : MonoBehaviour
     }
 
 
-
-    bool Popup()
+    bool PopupHistorybox()
     {
-
-        const int popupNumLinesMax = 8;
-        int popupNumLines = Math.Min(_historyBuffer.Count, popupNumLinesMax);
+        int popupNumLines = Math.Min(_historyBuffer.Count, HistoryBoxNumLinesMax);
         if (popupNumLines == 0)
             return false;
         float lineHeight = ImGui.GetTextLineHeightWithSpacing();
         var popupSize = new Vector2(Mathf.Max(_logWindowSize.x - 100f, 128f), lineHeight * popupNumLines + 20); // 20 for padding
 
         // Close popup if the parent window is too small
-        if (popupSize.x + 32 > _logWindowSize.x)
+        if (popupSize.x + 32 > _logWindowSize.x) // 32 is offset 
             return false;
         if (popupSize.y + 32 > _logWindowSize.y)
             return false;
@@ -463,18 +453,15 @@ public class WidgetQonsoleView : MonoBehaviour
 
         ImGui.SetNextWindowPos(_inputBarScreenPos - Vector2.up * (popupSize.y + 20f)); // 20 for offset from inputField
         ImGui.SetNextWindowSize(popupSize);
-        ImGui.SetNextWindowBgAlpha(0.75f);
+        ImGui.SetNextWindowBgAlpha(HistoryBoxAlpha);
 
-        if (ImGui.BeginPopupContextItem($"pppopup"))
+        if (ImGui.BeginPopupContextItem("HistoryBoxPopup"))
         {
             ImGui.Indent();
             var index = 0;
 
             foreach (var hLine in _historyBuffer)
             {
-
-                bool t = _historyBuffer.Count - 1 == index;
-
                 if (ImGui.Selectable($"{hLine}##{index}"))
                 {
                     print("selected " + index);
@@ -490,28 +477,18 @@ public class WidgetQonsoleView : MonoBehaviour
                     ImGui.CloseCurrentPopup();
                 }
 
-                //if (_historyBuffer.Count - 1 == index)
-                //{
-                //    ImGui.SetKeyboardFocusHere(-1);
-                //}
-
-
-                //if (index == _historyBufferPointer)
-                //{
-                //    //ImGui.Text(hLine);
-                //    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.0f, 0.0f, 1.0f)); // Red text color
-                //    ImGui.Selectable(hLine+index);
-                //    ImGui.PopStyleColor();
-                //}
-                //else
-                //{
-                //    ImGui.Selectable(hLine+index);
-                //}
-
+                if (_historyBuffer.Count - 1 == index)
+                {
+                    ImGui.SetKeyboardFocusHere();
+                }
                 ++index;
             }
 
-           
+            if (popupFirstFrame)
+            {
+                popupFirstFrame = false;
+                ImGui.SetScrollHereY();
+            }
 
             ImGui.Unindent();
             ImGui.EndPopup();

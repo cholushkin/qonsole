@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using Alg;
 using Gamelib.DataStructures;
 using GameLib.Log;
