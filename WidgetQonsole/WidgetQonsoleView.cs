@@ -11,8 +11,12 @@ using UnityEngine;
 // todo: rename all vairalbes to local naming convention
 public class WidgetQonsoleView : MonoBehaviour
 {
-
     public class EventConsoleEnteredText
+    {
+        public string Text;
+    }
+
+    public class EventConsoleTextChange
     {
         public string Text;
     }
@@ -29,6 +33,7 @@ public class WidgetQonsoleView : MonoBehaviour
 
     public ColorPalette TextColorPalette;
     public int HistoryBoxNumLinesMax = 8;
+    public int SuggestionBoxNumLinesMax = 8;
     public float HistoryBoxAlpha = 0.75f;
 
     private const float inputBufferSize = 1024;
@@ -49,6 +54,7 @@ public class WidgetQonsoleView : MonoBehaviour
     private CircularBuffer<WidgetQonsoleController.LogEntry> _items;
     private CircularBuffer<string> _historyBuffer;
     private int _historyBufferPointer;
+    private List<ConsoleSystem.ConsoleMethodInfo> _cmdSuggestionList;
 
 
     // todo: rename
@@ -60,6 +66,11 @@ public class WidgetQonsoleView : MonoBehaviour
     public void SetHistoryBuffer(CircularBuffer<string> historyBuffer)
     {
         _historyBuffer = historyBuffer;
+    }
+
+    public void SetCmdSuggestionList(List<ConsoleSystem.ConsoleMethodInfo> cmdSuggestionList)
+    {
+        _cmdSuggestionList = cmdSuggestionList;
     }
 
 
@@ -97,6 +108,7 @@ public class WidgetQonsoleView : MonoBehaviour
         Draw();
     }
 
+    private bool suggestionBoxPopup = false;
 
     void Draw()
     {
@@ -126,6 +138,17 @@ public class WidgetQonsoleView : MonoBehaviour
         // Command-line 
         InputBar();
         PopupHistorybox();
+
+        if (!string.IsNullOrEmpty(inputBuffer))
+        {
+            //if (!suggestionBoxPopup)
+            //{
+            //    ImGui.OpenPopup("SuggestionBoxPopup");
+            //    suggestionBoxPopup = true;
+            //}
+
+            PopupSuggestionBox();
+        }
 
 
         ImGui.End();
@@ -361,6 +384,7 @@ public class WidgetQonsoleView : MonoBehaviour
     }
 
     private string inputBuffer = "";
+    private string prevInputBuffer = "";
 
 
     private Vector2 _inputBarScreenPos;
@@ -396,28 +420,31 @@ public class WidgetQonsoleView : MonoBehaviour
             //// Clear command line.
             inputBuffer = "";
         }
-
-
-        if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.UpArrow))
+        else if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.UpArrow))
         {
-            print("up arrow click in edit box");
+            // Up arrow press in edit box
             popupFirstFrame = true;
             ImGui.OpenPopup("HistoryBoxPopup");
         }
-
-        if (ImGui.IsWindowHovered())
+        else if (ImGui.IsWindowHovered())
         {
             if (ImGui.IsMouseReleased(ImGuiMouseButton.Right))
             {
-                print("right click in edit box");
-                //ImGui.OpenPopup("popup_history", 0, new Vector2(100,100));
+                // Right click in edit box
             }
-
+        }
+        
+        // handle text change
+        if (inputBuffer != prevInputBuffer)
+        {
+            GlobalEventAggregator.EventAggregator.Publish(new EventConsoleTextChange{ Text = inputBuffer });
 
         }
 
+
         ImGui.PopItemWidth();
 
+        prevInputBuffer = inputBuffer;
 
         // Reset suggestions when client provides char input.
         if (ImGui.IsItemEdited() && !m_WasPrevFrameTabCompletion)
@@ -464,14 +491,12 @@ public class WidgetQonsoleView : MonoBehaviour
             {
                 if (ImGui.Selectable($"{hLine}##{index}"))
                 {
-                    print("selected " + index);
                     inputBuffer = hLine;
                     reclaimFocus = true;
                 }
 
                 if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.Return))
                 {
-                    print("selected " + index);
                     inputBuffer = hLine;
                     reclaimFocus = true;
                     ImGui.CloseCurrentPopup();
@@ -491,7 +516,69 @@ public class WidgetQonsoleView : MonoBehaviour
             }
 
             ImGui.Unindent();
+            
             ImGui.EndPopup();
+
+            return true;
+        }
+        return false;
+    }
+
+    bool PopupSuggestionBox()
+    {
+        int popupNumLines = Math.Min(_cmdSuggestionList.Count, SuggestionBoxNumLinesMax);
+        if (popupNumLines == 0)
+            return false;
+        float lineHeight = ImGui.GetTextLineHeightWithSpacing();
+        var popupSize = new Vector2(Mathf.Max(_logWindowSize.x - 100f, 128f), lineHeight * popupNumLines + 20); // 20 for padding
+
+        // Close popup if the parent window is too small
+        if (popupSize.x + 32 > _logWindowSize.x) // 32 is offset 
+            return false;
+        if (popupSize.y + 32 > _logWindowSize.y)
+            return false;
+
+
+        ImGui.SetNextWindowPos(_inputBarScreenPos - Vector2.up * (popupSize.y + 20f)); // 20 for offset from inputField
+        //ImGui.SetNextWindowSize(popupSize);
+        ImGui.SetNextWindowBgAlpha(HistoryBoxAlpha);
+
+
+        if (ImGui.BeginChild("qwe", popupSize, true, ImGuiWindowFlags.ChildWindow|ImGuiWindowFlags.NavFlattened)) 
+        //if (ImGui.BeginPopupContextItem("SuggestionBoxPopup"))
+        //ImGui.BeginTooltip(); // can't get mouse input, no navigation
+        {
+            ImGui.Indent();
+            var index = 0;
+
+            foreach (var suggestionMethodInfo in _cmdSuggestionList)
+            {
+                var hLine = suggestionMethodInfo.Signature;
+                if (ImGui.Selectable($"{hLine}##{index}"))
+                {
+                    inputBuffer = hLine;
+                    reclaimFocus = true;
+                }
+
+                if (ImGui.IsItemFocused() && Input.GetKeyDown(KeyCode.Return))
+                {
+                    inputBuffer = hLine;
+                    reclaimFocus = true;
+                    ImGui.CloseCurrentPopup();
+                }
+
+                ++index;
+            }
+
+            //if (popupFirstFrame)
+            //{
+            //    popupFirstFrame = false;
+            //    ImGui.SetScrollHereY();
+            //}
+
+            ImGui.Unindent();
+            //ImGui.EndPopup();
+            ImGui.EndChild();
             return true;
         }
         return false;
@@ -514,3 +601,4 @@ public class WidgetQonsoleView : MonoBehaviour
         return Color.white;
     }
 }
+

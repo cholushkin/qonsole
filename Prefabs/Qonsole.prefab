@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 8143856408981829002}
   - component: {fileID: 1648224306981113786}
   - component: {fileID: 956560971456215175}
+  - component: {fileID: 2515784542217072432}
+  - component: {fileID: 3609985683107843393}
   m_Layer: 0
   m_Name: Qonsole
   m_TagString: Untagged
@@ -54,6 +56,10 @@ MonoBehaviour:
     Exception: {r: 0.4528302, g: 0, b: 0, a: 1}
     Warning: {r: 0.9056604, g: 0.7135712, b: 0, a: 1}
     Log: {r: 1, g: 1, b: 1, a: 1}
+  HistoryBoxNumLinesMax: 8
+  SuggestionBoxNumLinesMax: 8
+  HistoryBoxAlpha: 0.75
+  m_WindowAlpha: 1
   ConsoleName: Dev Console
 --- !u!114 &1667189582909058163
 MonoBehaviour:
@@ -119,3 +125,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   CircularBufferCapacity: 16
   View: {fileID: 6752539035765218899}
+--- !u!114 &2515784542217072432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 732962190888676718}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7177fb615f1c4cd42a5da1974734f924, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  View: {fileID: 6752539035765218899}
+--- !u!114 &3609985683107843393
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 732962190888676718}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6ba02fc9edf797439a76f677125df83, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Controller: {fileID: 2515784542217072432}
