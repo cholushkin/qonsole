@@ -31,6 +31,7 @@ public class WidgetQonsoleView : MonoBehaviour
         public Color Log;
     }
 
+    public bool ResetPosition;
     public ColorPalette TextColorPalette;
     public int HistoryBoxNumLinesMax = 8;
     public int SuggestionBoxNumLinesMax = 8;
@@ -112,6 +113,9 @@ public class WidgetQonsoleView : MonoBehaviour
 
     void Draw()
     {
+	    if(ResetPosition)
+		    ImGui.SetNextWindowPos(Vector2.zero);
+
         // Begin Console Window.
         ImGui.PushStyleVar(ImGuiStyleVar.Alpha, m_WindowAlpha);
         if (!ImGui.Begin(ConsoleName, ref m_IsConsoleOpened, ImGuiWindowFlags.MenuBar))
