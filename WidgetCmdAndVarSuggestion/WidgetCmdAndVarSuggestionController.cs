@@ -6,23 +6,36 @@ using UnityEngine;
 public class WidgetCmdAndVarSuggestionController : MonoBehaviour
 {
     public WidgetQonsoleView View;
-    private List<ConsoleSystem.ConsoleMethodInfo> _consoleSuggestions;
+    private List<ConsoleSystem.ConsoleMethodInfo> _consoleCmdSuggestions;
+    private List<ConsoleSystem.ConsoleVariableInfo> _consoleVarSuggestions;
 
 
-    public void Awake()
+    void Awake()
     {
-        _consoleSuggestions = new List<ConsoleSystem.ConsoleMethodInfo>(128);
-        View.SetCmdSuggestionList(_consoleSuggestions);
+        _consoleCmdSuggestions = new List<ConsoleSystem.ConsoleMethodInfo>(128);
+        _consoleVarSuggestions = new List<ConsoleSystem.ConsoleVariableInfo>(128);
+        View.SetCmdSuggestionList(_consoleCmdSuggestions);
+        View.SetVarSuggestionList(_consoleVarSuggestions);
     }
 
 
-    public void UpdateSuggestionList(string userInput)
+    public void UpdateSuggestionLists(string userInput)
+    {
+        _consoleCmdSuggestions = GetCmdSuggestions(userInput);
+        View.SetCmdSuggestionList(_consoleCmdSuggestions);
+
+        _consoleVarSuggestions = GetVarSuggestions(userInput);
+        View.SetVarSuggestionList(_consoleVarSuggestions);
+    }
+
+
+    private List<ConsoleSystem.ConsoleMethodInfo> GetCmdSuggestions(string userInput)
     {
         // Find commands that contain the input text
-        _consoleSuggestions = ConsoleSystem.Methods.FindAll(command => command.FullName.Contains(userInput) || command.AliasName.Contains(userInput));
+        var cmds = ConsoleSystem.Methods.FindAll(command => command.FullName.Contains(userInput) || command.AliasName.Contains(userInput));
 
         // Sort the suggestions based on relevance (exact match first)
-        _consoleSuggestions.Sort((a, b) =>
+        cmds.Sort((a, b) =>
         {
             if (a.FullName == userInput || a.AliasName == userInput)
                 return -1;
@@ -30,6 +43,27 @@ public class WidgetCmdAndVarSuggestionController : MonoBehaviour
                 return 1;
             return string.Compare(a.FullName, b.FullName, StringComparison.Ordinal);
         });
-        View.SetCmdSuggestionList(_consoleSuggestions);
+
+        return cmds;
     }
+
+
+    private List<ConsoleSystem.ConsoleVariableInfo> GetVarSuggestions(string userInput)
+    {
+        // Find vars that contain the input text
+        var vars = ConsoleSystem.Variables.FindAll(varInfo => varInfo.FullName.Contains(userInput) || varInfo.AliasName.Contains(userInput));
+
+        // Sort the suggestions based on relevance (exact match first)
+        vars.Sort((a, b) =>
+        {
+            if (a.FullName == userInput || a.AliasName == userInput)
+                return -1;
+            if (b.FullName == userInput || b.AliasName == userInput)
+                return 1;
+            return string.Compare(a.FullName, b.FullName, StringComparison.Ordinal);
+        });
+
+        return vars;
+    }
+
 }

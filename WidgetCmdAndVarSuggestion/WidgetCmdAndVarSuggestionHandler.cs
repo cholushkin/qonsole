@@ -1,7 +1,7 @@
-using Events;
+﻿using Events;
 using UnityEngine;
 
-public class WidgetCmdAndVarSuggestionHandler: MonoBehaviour, IHandle<WidgetQonsoleView.EventConsoleTextChange>
+public class WidgetCmdAndVarSuggestionHandler : MonoBehaviour, IHandle<WidgetQonsoleView.EventConsoleTextChange>
 {
     public WidgetCmdAndVarSuggestionController Controller;
 
@@ -12,6 +12,6 @@ public class WidgetCmdAndVarSuggestionHandler: MonoBehaviour, IHandle<WidgetQons
 
     public void Handle(WidgetQonsoleView.EventConsoleTextChange message)
     {
-        Controller.UpdateSuggestionList(message.Text);
+        Controller.UpdateSuggestionLists(message.Text);
     }
 }
