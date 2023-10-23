@@ -29,4 +29,4 @@ IngameConsole is a Unity console which supports commands execution. Qonsole take
 The project has been postponed for the following reasons:
 * UImGUI has not been ported to mobile platforms.
 * The Windows port has lack of features and it's not fully ported to Unity.
-* Check out uconsole which is based on Unity GUI instead of uimgui https://github.com/cholushkin/uonsole 
+* Check out uconsole which is based on Unity GUI instead of uimgui https://github.com/cholushkin/uconsole 
